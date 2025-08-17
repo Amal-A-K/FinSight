@@ -74,7 +74,7 @@ export function EditTransactionModal({
                 </Dialog.Title>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label htmlFor="amount" className="block text-sm font-medium text-violet-700">
+                    <label htmlFor="amount" className="block text-violet-700 mb-1">
                       Amount
                     </label>
                     <Input
@@ -87,7 +87,7 @@ export function EditTransactionModal({
                     />
                   </div>
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-violet-700">
+                    <label htmlFor="description" className="block text-violet-700 mb-1">
                       Description
                     </label>
                     <Input
@@ -99,7 +99,7 @@ export function EditTransactionModal({
                     />
                   </div>
                   <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-violet-700">
+                    <label htmlFor="date" className="block  text-violet-700 mb-1">
                       Date
                     </label>
                     <Input
