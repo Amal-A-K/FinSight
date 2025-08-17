@@ -18,9 +18,9 @@ export default function RootLayout({
           <nav className="bg-violet-900 dark:bg-violet-950 text-white p-4 shadow-lg">
             <div className="container mx-auto flex items-center justify-between">
               <div className="flex space-x-6">
-                <Link href="/" className="hover:text-violet-300 transition-colors">Dashboard</Link>
-                <Link href="/transactions" className="hover:text-violet-300 transition-colors">Transactions</Link>
-                <Link href="/add-transaction" className="hover:text-violet-300 transition-colors">Add Transaction</Link>
+                <Link href="/" className="hover:text-violet-300 font-medium transition-colors">Dashboard</Link>
+                <Link href="/transactions" className="hover:text-violet-300 font-medium transition-colors">Transactions</Link>
+                <Link href="/add-transaction" className="hover:text-violet-300 font-medium transition-colors">Add Transaction</Link>
               </div>
               <ThemeToggle />
             </div>
