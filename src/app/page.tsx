@@ -1,103 +1,120 @@
-import Image from "next/image";
+'use client'; // Add this at the top
 
-export default function Home() {
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Card } from "@/components/ui/card";
+import { LoadingContainer } from "@/components/ui/loading-container";
+import { useEffect, useState, useCallback } from "react";
+
+interface Transaction {
+  id: number;
+  amount: number;
+  date: string;
+  description: string;
+}
+
+interface MonthlyData {
+  name: string;
+  amount: number;
+}
+
+export default function Dashboard() {
+  const [chartData, setChartData] = useState<MonthlyData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/transactions');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format');
+        }
+        const transactions: Transaction[] = data;
+        
+        const monthlyData = transactions.reduce((acc: Record<number, number>, transaction) => {
+          const month = new Date(transaction.date).getMonth();
+          acc[month] = (acc[month] || 0) + transaction.amount;
+          return acc;
+        }, {});
+
+        const formattedData = Object.entries(monthlyData).map(([month, amount]) => ({
+          name: new Date(0, parseInt(month)).toLocaleString('default', { month: 'short' }),
+          amount: amount as number
+        }));
+
+        setChartData(formattedData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // You might want to set an error state here to show to the user
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const formatYAxisTick = useCallback((value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-violet-900 dark:text-violet-300">FinSight - Personal Finance Tracker Dashboard</h1>
+      {isLoading ? (
+        <LoadingContainer message="Loading transactions..." className="text-violet-700 dark:text-violet-300" />
+      ) : (
+        <Card className="p-4 sm:p-6 border-violet-200 dark:border-violet-800 shadow-lg shadow-violet-100 dark:shadow-violet-900/20">
+          <div className="w-full h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: '#6b21a8' }}  // text-violet-800
+                  tickLine={{ stroke: '#7c3aed' }}  // violet-600
+                  axisLine={{ stroke: '#7c3aed' }}  // violet-600
+                />
+                <YAxis 
+                  tickFormatter={formatYAxisTick}
+                  tick={{ fill: '#6b21a8' }}  // text-violet-800
+                  tickLine={{ stroke: '#7c3aed' }}  // violet-600
+                  axisLine={{ stroke: '#7c3aed' }}  // violet-600
+                />
+                <Tooltip 
+                  formatter={(value: number) => [
+                    formatYAxisTick(value),
+                    'Amount'
+                  ]}
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #8b5cf6',  // violet-500
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.1)',  // violet-600 shadow
+                    color: '#6b21a8'  // text-violet-800
+                  }}
+                  cursor={{ fill: '#8b5cf620' }}  // violet-500 with opacity
+                />
+                <Bar 
+                  dataKey="amount" 
+                  fill="#7c3aed"  // violet-600
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={60}
+                  activeBar={{ fill: '#6d28d9' }}  // violet-700 for hover
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

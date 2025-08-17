@@ -1,22 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinSight - Personal Finance Tracker
+
+FinSight is a modern, user-friendly personal finance tracking application built with Next.js 13, featuring a beautiful violet theme and intuitive interface for managing your transactions.
+
+![FinSight Dashboard](public/dashboard-preview.png)
+
+## Features
+
+- 📊 Interactive dashboard with monthly expense visualization
+- 💸 Easy transaction management (Add, Edit, Delete)
+- 💠 Modern glass-morphism UI design
+- 🎨 Consistent violet theme throughout
+- 🌗 Dark mode support
+- ₹ Indian Rupee (INR) currency formatting
+- 🚀 Real-time updates with optimistic UI
+- 📱 Responsive design for all devices
+
+## Tech Stack
+
+- **Framework**: [Next.js 13](https://nextjs.org/) with App Router
+- **Database**: [Prisma](https://www.prisma.io/) with SQLite
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Components**: 
+  - [Shadcn/ui](https://ui.shadcn.com/) for base components
+  - [Recharts](https://recharts.org/) for data visualization
+  - [Headless UI](https://headlessui.com/) for accessible modals
+- **Notifications**: [React-Toastify](https://fkhadra.github.io/react-toastify/)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 16.8 or later
+- npm or yarn or pnpm
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Amal-A-K/FinSight.git
+   cd finsight
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
+
+3. Set up the database:
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+
+## Project Structure
+
+```
+finsight/
+├── src/
+│   ├── app/                 # Next.js 13 app directory
+│   │   ├── api/            # API routes
+│   │   ├── page.tsx        # Dashboard page
+│   │   └── ...            
+│   ├── components/         # React components
+│   │   └── ui/            # Reusable UI components
+│   ├── lib/               # Utility functions
+│   └── types/             # TypeScript types
+├── prisma/                # Database schema and migrations
+└── public/               # Static assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Key Features in Detail
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Transaction Management
+- Add new transactions with amount, description, and date
+- Edit existing transactions with real-time updates
+- Delete transactions with confirmation modal
+- Beautiful glass-morphism modals for all operations
+
+### Dashboard Visualization
+- Monthly transaction summaries
+- Interactive bar chart
+- Formatted currency display
+- Responsive design for all screen sizes
+
+### User Interface
+- Consistent violet theme throughout
+- Smooth animations and transitions
+- Accessible components
+- Toast notifications for all actions
+- Dark mode support
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
