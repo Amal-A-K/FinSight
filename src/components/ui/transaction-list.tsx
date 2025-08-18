@@ -27,14 +27,9 @@ export function TransactionList({ transactions, onDelete }: TransactionListProps
 
   async function confirmDelete() {
     if (!deletingTransaction) return;
-    
-    try {
-      await onDelete(deletingTransaction.id.toString());
-      toast.success('Transaction deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete transaction');
-      console.error('Error deleting transaction:', error);
-    }
+
+    // The parent's `onDelete` function handles the API call, re-fetching, and toast notifications.
+    await onDelete(deletingTransaction.id.toString());
   }
 
   async function handleEdit(updatedTransaction: Transaction) {

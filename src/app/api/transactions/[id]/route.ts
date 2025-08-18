@@ -56,9 +56,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
+//   { params }: { params: { id: string } }
 ) {
   try {
+    const { params } = context;
     await prisma.$connect();
     const id = parseInt(params.id);
     
