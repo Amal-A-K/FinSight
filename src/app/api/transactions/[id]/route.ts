@@ -16,20 +16,23 @@ function handlePrismaError(error: unknown) {
   }
   
   return NextResponse.json(
-    { error: "An error occurred while accessing the database" },
+    { error: "Database operation failed" },
     { status: 500 }
   );
 }
 
+interface RouteParams {
+  params: { id: string };
+}
+
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    await prisma.$connect();
     const { amount, description, date } = await request.json();
-    
     const id = parseInt(params.id);
+    
     if (isNaN(id)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
@@ -49,17 +52,14 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error: unknown) {
     return handlePrismaError(error);
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    await prisma.$connect();
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -76,7 +76,5 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch (error: unknown) {
     return handlePrismaError(error);
-  } finally {
-    await prisma.$disconnect();
   }
 }
