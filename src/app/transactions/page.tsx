@@ -5,6 +5,7 @@ import { Transaction } from "@/types/transaction";
 import { TransactionList } from "@/components/ui/transaction-list";
 import { toast } from 'react-toastify';
 import { useEffect, useState } from 'react';
+import Loading from "./loading";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -49,7 +50,7 @@ export default function TransactionsPage() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
   return (

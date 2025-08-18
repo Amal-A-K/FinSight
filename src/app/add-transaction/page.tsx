@@ -12,6 +12,7 @@ export default function AddTransaction() {
     description: "",
     date: new Date().toISOString().split('T')[0]
   });
+
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +36,7 @@ export default function AddTransaction() {
       toast.error(error instanceof Error ? error.message : 'Failed to add transaction');
     }
   };
+  
 
   return (
     <div className="max-w-md mx-auto mt-8 bg-violet-50 p-6 rounded-lg shadow-md">
