@@ -21,39 +21,42 @@ function handlePrismaError(error: unknown) {
   );
 }
 
-interface RouteParams {
-  params: { id: string };
-}
+// interface RouteParams {
+//   params: { id: string };
+// }
 
 export async function PATCH(
   request: Request,
-  { params }: RouteParams
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { amount, description, date } = await request.json();
-    const id = parseInt(params.id);
-    
-    if (isNaN(id)) {
+    const { id } = await params;   // ✅ await params
+    const transactionId = parseInt(id);
+
+    if (isNaN(transactionId)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
         { status: 400 }
       );
     }
 
+    const { amount, description, date } = await request.json();
+
     const updated = await prisma.transaction.update({
-      where: { id },
+      where: { id: transactionId },
       data: {
         ...(amount !== undefined && { amount: parseFloat(amount) }),
         ...(description !== undefined && { description }),
-        ...(date !== undefined && { date: new Date(date) })
-      }
+        ...(date !== undefined && { date: new Date(date) }),
+      },
     });
-    
+
     return NextResponse.json(updated);
   } catch (error: unknown) {
     return handlePrismaError(error);
   }
 }
+
 
 export async function DELETE(
   request: Request,
