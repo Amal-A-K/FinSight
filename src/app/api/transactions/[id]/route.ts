@@ -57,12 +57,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-   { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
-    
-    if (isNaN(id)) {
+    const { id } = await params; // ✅ await params
+    const transactionId = parseInt(id);
+
+    if (isNaN(transactionId)) {
       return NextResponse.json(
         { error: "Invalid transaction ID" },
         { status: 400 }
@@ -70,9 +71,9 @@ export async function DELETE(
     }
 
     await prisma.transaction.delete({
-      where: { id }
+      where: { id: transactionId },
     });
-    
+
     return new NextResponse(null, { status: 204 });
   } catch (error: unknown) {
     return handlePrismaError(error);
