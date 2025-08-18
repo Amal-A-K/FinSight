@@ -1,19 +1,30 @@
 import { PrismaClient } from '@prisma/client';
 
-let prisma: PrismaClient;
+declare global {
+  var prisma: PrismaClient | undefined;
+}
 
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined;
-  };
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient({
-      log: ['query', 'error', 'warn'],
+const prisma: PrismaClient = global.prisma || (() => {
+  // Create new instance with logging in development
+  const client = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' 
+      ? ['query', 'error', 'warn']
+      : ['error']
+  });
+
+  // Ensure proper disconnection on process exit
+  if (process.env.NODE_ENV !== 'production') {
+    process.on('beforeExit', async () => {
+      await client.$disconnect();
     });
   }
-  prisma = globalForPrisma.prisma;
+
+  return client;
+})();
+
+// Prevent multiple instances in development
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
 }
 
 export { prisma };

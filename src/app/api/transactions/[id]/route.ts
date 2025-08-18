@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // Helper function to handle Prisma errors
@@ -22,7 +22,7 @@ function handlePrismaError(error: unknown) {
 }
 
 export async function PATCH(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -55,12 +55,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string } }
-//   { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { params } = context;
     await prisma.$connect();
     const id = parseInt(params.id);
     
@@ -75,7 +73,7 @@ export async function DELETE(
       where: { id }
     });
     
-    return NextResponse.json({ success: true });
+    return new NextResponse(null, { status: 204 });
   } catch (error: unknown) {
     return handlePrismaError(error);
   } finally {
