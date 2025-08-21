@@ -48,6 +48,8 @@ FinSight is a modern, user-friendly personal finance tracking application built 
 
 ## 📋 Stage 1 - Transaction Tracker (Completed)
 
+### 🏠 FinSight Dashboard
+
 ![FinSight Dashboard](public/dashboard-preview.png)
 
 ### Features
@@ -70,6 +72,15 @@ FinSight is a modern, user-friendly personal finance tracking application built 
   - [Recharts](https://recharts.org/) for data visualization
   - [Headless UI](https://headlessui.com/) for accessible modals
 - **Notifications**: [React-Toastify](https://fkhadra.github.io/react-toastify/)
+- **State Management**: 
+  - [Redux Toolkit](https://redux-toolkit.js.org/) for efficient state management
+  - [React-Redux](https://react-redux.js.org/) for React integration
+  - Features include:
+    - Centralized application state
+    - Immutable state updates with Immer
+    - Redux DevTools integration for debugging
+    - Optimized re-renders with memoized selectors
+    - Async request handling with createAsyncThunk
 
 ## Getting Started
 
