@@ -17,6 +17,17 @@ const prisma: PrismaClient = global.prisma || (() => {
     process.on('beforeExit', async () => {
       await client.$disconnect();
     });
+    
+    // Also handle SIGINT and SIGTERM for better cleanup
+    process.on('SIGINT', async () => {
+      await client.$disconnect();
+      process.exit(0);
+    });
+    
+    process.on('SIGTERM', async () => {
+      await client.$disconnect();
+      process.exit(0);
+    });
   }
 
   return client;

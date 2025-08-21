@@ -7,7 +7,11 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        // Updated with explicit violet theme for light and dark modes
+        "bg-white dark:bg-violet-950/30 text-violet-900 dark:text-violet-100",
+        "border-violet-200 dark:border-violet-800",
+        "shadow-sm dark:shadow-violet-900/20",
+        "flex flex-col gap-6 rounded-xl border py-6",
         className
       )}
       {...props}
@@ -32,7 +36,10 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
+      className={cn(
+        "leading-none font-semibold text-violet-900 dark:text-violet-100",
+        className
+      )}
       {...props}
     />
   )
@@ -42,7 +49,10 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn(
+        "text-violet-600 dark:text-violet-400 text-sm",
+        className
+      )}
       {...props}
     />
   )
@@ -75,7 +85,12 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      className={cn(
+        "flex items-center px-6 [.border-t]:pt-6",
+        // Add border color for footer if it has a border-t
+        "[&.border-t]:border-violet-200 [&.dark:border-t]:border-violet-800",
+        className
+      )}
       {...props}
     />
   )

@@ -6,8 +6,9 @@ import { Transaction } from "@/types/transaction";
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { EditTransactionModal } from "@/components/ui/edit-transaction-modal";
 import { DeleteTransactionModal } from "@/components/ui/delete-transaction-modal";
-import { toast } from 'react-toastify';
 import { formatCurrency } from '@/lib/format';
+import { useAppDispatch } from '@/lib/hooks';
+import { updateTransaction, deleteTransaction } from '@/features/transactions/transactionSlice';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -32,63 +33,61 @@ export function TransactionList({ transactions, onDelete }: TransactionListProps
     await onDelete(deletingTransaction.id.toString());
   }
 
+  const dispatch = useAppDispatch();
+
   async function handleEdit(updatedTransaction: Transaction) {
     try {
-      const res = await fetch(`/api/transactions/${updatedTransaction.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: updatedTransaction.amount,
-          description: updatedTransaction.description,
-          date: updatedTransaction.date
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to update transaction');
+      const resultAction = await dispatch(updateTransaction(updatedTransaction));
+      
+      if (updateTransaction.fulfilled.match(resultAction)) {
+        setEditingTransaction(null);
+        setIsEditModalOpen(false);
+      } else if (updateTransaction.rejected.match(resultAction)) {
+        throw new Error('Failed to update transaction');
       }
-
-      setEditingTransaction(null);
-      setIsEditModalOpen(false);
-      toast.success('Transaction updated successfully');
-      // Refresh transactions
-      window.location.reload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update transaction');
       console.error('Error updating transaction:', error);
     }
-  }  function openEditModal(transaction: Transaction) {
+  }
+
+  function openEditModal(transaction: Transaction) {
     setEditingTransaction(transaction);
     setIsEditModalOpen(true);
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {transactions.map((transaction) => (
-        <Card key={transaction.id} className="p-4 border border-violet-200 shadow-sm">
+        <Card key={transaction.id} className="p-4 hover:shadow-md transition-shadow duration-200">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="font-semibold text-violet-800">{transaction.description}</h3>
-              <p className="text-violet-600">
+              <h3 className="font-semibold text-violet-800 dark:text-violet-200">{transaction.description}</h3>
+              <p className="text-violet-600 dark:text-violet-300 font-medium">
                 {formatCurrency(transaction.amount)}
               </p>
-              <p className="text-sm text-violet-500">
+              <p className="text-sm text-violet-500 dark:text-violet-400">
                 {new Date(transaction.date).toLocaleDateString()}
               </p>
+              {transaction.category && (
+                <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-violet-100 dark:bg-violet-800/60 text-violet-800 dark:text-violet-200 mt-2 border border-violet-200 dark:border-violet-700">
+                  {transaction.category.name}
+                </span>
+              )}
             </div>
             <div className="flex space-x-2">
               <button
                 onClick={() => openEditModal(transaction)}
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-violet-100 dark:hover:bg-violet-800/50 rounded-full transition-colors duration-200"
+                title="Edit transaction"
               >
-                <PencilIcon className="h-5 w-5 text-violet-600" />
+                <PencilIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </button>
               <button
                 onClick={() => handleDelete(transaction)}
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors duration-200"
+                title="Delete transaction"
               >
-                <TrashIcon className="h-5 w-5 text-violet-600" />
+                <TrashIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
               </button>
             </div>
           </div>

@@ -1,65 +1,76 @@
 'use client';
 
 import { Card } from "@/components/ui/card";
-import { Transaction } from "@/types/transaction";
 import { TransactionList } from "@/components/ui/transaction-list";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { fetchTransactions, deleteTransaction, selectAllTransactions, selectTransactionStatus } from "@/features/transactions/transactionSlice";
 import { toast } from 'react-toastify';
-import { useEffect, useState } from 'react';
 import Loading from "./loading";
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+  const transactions = useAppSelector(selectAllTransactions);
+  const status = useAppSelector(selectTransactionStatus);
+  
+  // Fetch transactions on component mount and when the route changes
   useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  async function fetchTransactions() {
-    try {
-      const res = await fetch('/api/transactions');
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+    const fetchTransactionsData = async () => {
+      try {
+        await dispatch(fetchTransactions()).unwrap();
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+        toast.error('Failed to load transactions');
       }
-      const data = await res.json();
-      setTransactions(data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load transactions');
-    } finally {
-      setLoading(false);
-    }
-  }
+    };
+    
+    fetchTransactionsData();
+    
+    // Set up visibility change listener
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTransactionsData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [dispatch]);
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/transactions/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
+      const resultAction = await dispatch(deleteTransaction(id));
+      if (deleteTransaction.fulfilled.match(resultAction)) {
+        toast.success('Transaction deleted successfully');
+      } else if (deleteTransaction.rejected.match(resultAction)) {
         throw new Error('Failed to delete transaction');
       }
-
-      await fetchTransactions();
-      toast.success('Transaction deleted successfully');
     } catch (error) {
       console.error('Error deleting transaction:', error);
       toast.error('Failed to delete transaction');
     }
   };
 
-  if (loading) {
+  if (status === 'loading' && !transactions.length) {
     return <Loading />;
   }
 
   return (
-    <Card className="p-6">
-      <h1 className="text-2xl font-bold mb-4 text-violet-900">Transactions</h1>
-      <TransactionList 
-        transactions={transactions} 
-        onDelete={handleDelete}
-      />
-    </Card>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-violet-900 dark:text-violet-100">Transactions</h1>
+      </div>
+      <Card className="p-6">
+        <TransactionList 
+          transactions={transactions} 
+          onDelete={handleDelete} 
+        />
+      </Card>
+    </div>
   );
 }

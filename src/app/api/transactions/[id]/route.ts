@@ -21,16 +21,12 @@ function handlePrismaError(error: unknown) {
   );
 }
 
-// interface RouteParams {
-//   params: { id: string };
-// }
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;   // ✅ await params
+    const { id } = await params;
     const transactionId = parseInt(id);
 
     if (isNaN(transactionId)) {
@@ -40,7 +36,7 @@ export async function PATCH(
       );
     }
 
-    const { amount, description, date } = await request.json();
+    const { amount, description, date, categoryId } = await request.json();
 
     const updated = await prisma.transaction.update({
       where: { id: transactionId },
@@ -48,7 +44,16 @@ export async function PATCH(
         ...(amount !== undefined && { amount: parseFloat(amount) }),
         ...(description !== undefined && { description }),
         ...(date !== undefined && { date: new Date(date) }),
+        // Handle category update - connect, disconnect, or leave unchanged
+        ...(categoryId !== undefined && (
+          categoryId === '' || categoryId === null 
+            ? { category: { disconnect: true } }
+            : { category: { connect: { id: parseInt(categoryId) } } }
+        ))
       },
+      include: {
+        category: true  // Include category data in response
+      }
     });
 
     return NextResponse.json(updated);
@@ -57,13 +62,12 @@ export async function PATCH(
   }
 }
 
-
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // ✅ await params
+    const { id } = await params;
     const transactionId = parseInt(id);
 
     if (isNaN(transactionId)) {

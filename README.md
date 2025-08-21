@@ -2,10 +2,55 @@
 
 FinSight is a modern, user-friendly personal finance tracking application built with Next.js 13, featuring a beautiful violet theme and intuitive interface for managing your transactions.
 
+## 🚀 Stage 2 - Categories & Dashboard
+
+### New Features Added
+
+#### 1. Category Management
+- 🏷️ Predefined categories: Food, Transport, Housing, Entertainment, and Utilities
+- 🎨 Color-coded categories for better visualization
+- 🔄 Category assignment during transaction creation/editing
+
+#### 2. Enhanced Dashboard
+- 📊 Category-wise spending breakdown with interactive pie chart
+- 📈 Monthly expense trends with bar chart
+- 💰 Quick view of total monthly expenses
+- 🌗 Beautifully designed dark and light mode support
+
+#### 3. Improved Transaction Management
+- 📱 Fully responsive transaction cards
+- 🔄 Real-time updates across all views
+- 🎨 Better visual hierarchy with category colors
+
+### Screenshots
+
+#### Dashboard Views
+| Light Mode | Dark Mode |
+|------------|------------|
+| ![Light Dashboard 1](public/stage2_dashboard_lightmode1.png) | ![Dark Dashboard 1](public/stage2_dashboard_darkmode1.png) |
+| ![Light Dashboard 2](public/stage2_dashboard_lightmode2.png) | ![Dark Dashboard 2](public/stage2_dashboard_darkmode2.png) |
+
+#### Transactions & Add Transaction
+| Light Mode | Dark Mode |
+|------------|------------|
+| ![Light Transactions](public/stage2_transactionsPage_lightmode.png) | ![Dark Transactions](public/stage2_transactionsPage_darkmode.png) |
+| ![Light Add](public/stage2_add_page_lightmode.png) | ![Dark Add](public/stage2_add_page_darkmode.png) |
+
+#### Transaction Modals
+| Light Mode | Dark Mode |
+|------------|------------|
+| **Edit Transaction** | **Delete Confirmation** |
+| ![Light Edit Modal](public/stage2_editModal_lightmode.png) | ![Light Delete Modal](public/stage2_delete_modal_lightmode.png) |
+| **Edit Transaction (Dark)** | **Delete Confirmation (Dark)** |
+| ![Dark Edit Modal](public/stage2_editModal_darkmode.png) | ![Dark Delete Modal](public/stage2_delete_modal_darkmode.png) |
+
+---
+
+## 📋 Stage 1 - Transaction Tracker (Completed)
+
 ![FinSight Dashboard](public/dashboard-preview.png)
 
-## Features
-
+### Features
 - 📊 Interactive dashboard with monthly expense visualization
 - 💸 Easy transaction management (Add, Edit, Delete)
 - 💠 Modern glass-morphism UI design
@@ -87,23 +132,27 @@ finsight/
 ## Key Features in Detail
 
 ### Transaction Management
-- Add new transactions with amount, description, and date
+- Add new transactions with amount, description, date, and category
 - Edit existing transactions with real-time updates
 - Delete transactions with confirmation modal
 - Beautiful glass-morphism modals for all operations
+- Card-based transaction display for better mobile experience
+- State management using Redux and Redux Toolkit for efficient data flow
 
 ### Dashboard Visualization
-- Monthly transaction summaries
-- Interactive bar chart
-- Formatted currency display
+- Monthly transaction summaries with category breakdown
+- Interactive bar chart for expense trends
+- Category-wise pie chart for visual spending analysis
+- Formatted currency display with Indian Rupee (₹) support
 - Responsive design for all screen sizes
 
 ### User Interface
-- Consistent violet theme throughout
+- Consistent violet theme throughout with dark/light mode
 - Smooth animations and transitions
-- Accessible components
+- Accessible components following WCAG guidelines
 - Toast notifications for all actions
-- Dark mode support
+- Responsive design that works on all devices
+- Intuitive navigation with sticky header
 
 ## Contributing
 

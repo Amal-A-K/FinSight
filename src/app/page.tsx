@@ -1,120 +1,323 @@
-'use client'; // Add this at the top
+'use client';
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/card";
-import { LoadingContainer } from "@/components/ui/loading-container";
-import { useEffect, useState, useCallback } from "react";
-
-interface Transaction {
-  id: number;
-  amount: number;
-  date: string;
-  description: string;
-}
-
-interface MonthlyData {
-  name: string;
-  amount: number;
-}
-
+import { Transaction } from "@/types/transaction";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, TooltipProps } from 'recharts';
+import { CategoryPieChart } from "@/components/CategoryPieChart";
+import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { 
+  fetchTransactions, 
+  selectTransactionsByYear, 
+  selectSelectedYear, 
+  setSelectedYear, 
+  selectTransactionStatus 
+} from "@/features/transactions/transactionSlice";
+import { fetchCategories } from "@/features/categories/categorySlice";
+import { RecentTransactions } from '@/components/RecentTransactions';
+import { Skeleton } from '@/components/ui/skeleton';
+// import { Loading as LoadingContainer } from './loading';
+import Loading from './loading';
+import Link from 'next/link';
+import { DashboardStats } from '@/components/DashboardStats';
 export default function Dashboard() {
-  const [chartData, setChartData] = useState<MonthlyData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const transactions = useAppSelector(selectTransactionsByYear);
+  const yearFilter = useAppSelector(selectSelectedYear);
+  const status = useAppSelector(selectTransactionStatus);
 
+  // Fetch transactions and categories on component mount and when year changes
   useEffect(() => {
-    async function fetchData() {
+    const loadData = async () => {
       try {
-        const res = await fetch('/api/transactions');
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+        if (status === 'idle' || status === 'succeeded' || status === 'failed') {
+          await Promise.all([
+            dispatch(fetchTransactions(yearFilter)),
+            dispatch(fetchCategories())
+          ]);
         }
-        const data = await res.json();
-        if (!Array.isArray(data)) {
-          throw new Error('Invalid response format');
-        }
-        const transactions: Transaction[] = data;
-        
-        const monthlyData = transactions.reduce((acc: Record<number, number>, transaction) => {
-          const month = new Date(transaction.date).getMonth();
-          acc[month] = (acc[month] || 0) + transaction.amount;
-          return acc;
-        }, {});
-
-        const formattedData = Object.entries(monthlyData).map(([month, amount]) => ({
-          name: new Date(0, parseInt(month)).toLocaleString('default', { month: 'short' }),
-          amount: amount as number
-        }));
-
-        setChartData(formattedData);
       } catch (error) {
-        console.error('Error fetching data:', error);
-        // You might want to set an error state here to show to the user
-      } finally {
-        setIsLoading(false);
+        console.error('Failed to load data:', error);
       }
-    }
+    };
 
-    fetchData();
-  }, []);
+    loadData();
+  }, [dispatch, yearFilter]);
 
-  const formatYAxisTick = useCallback((value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  }, []);
+  const handleYearChange = (increment: number) => {
+    dispatch(setSelectedYear(yearFilter + increment));
+  };
+
+  if (status === 'loading') {
+    return (
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Loading />
+      </div>
+    );
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Card className="p-6 text-center">
+          <h2 className="text-xl font-semibold mb-2">Failed to load data</h2>
+          <p className="text-muted-foreground mb-4">There was an error loading your dashboard data.</p>
+          <Button 
+            onClick={() => {
+              dispatch(fetchTransactions(yearFilter));
+              dispatch(fetchCategories());
+            }}
+          >
+            Retry
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!transactions) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Card className="p-6 text-center">
+          <p className="text-muted-foreground mb-4">No data available</p>
+          <Button asChild>
+            <Link href="/add-transaction">Add Transaction</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Calculate category totals using ALL transactions
+  const categoryData = Object.values(
+    transactions
+      .filter((transaction): transaction is Transaction & { category: NonNullable<Transaction['category']> } => 
+        Boolean(transaction.category)
+      )
+      .reduce<Record<string, { name: string; value: number }>>((acc, transaction) => {
+        const categoryId = transaction.category.id;
+        if (!acc[categoryId]) {
+          acc[categoryId] = {
+            name: transaction.category.name,
+            value: 0
+          };
+        }
+        acc[categoryId].value += transaction.amount;
+        return acc;
+      }, {})
+  );
+
+  // Filter out zero values
+  const nonZeroCategoryData = categoryData.filter(item => item.value > 0);
+
+  // Calculate metrics
+  const totalExpenses = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const topCategory = nonZeroCategoryData.length > 0 
+    ? nonZeroCategoryData.reduce((a, b) => 
+        a.value > b.value ? a : b
+      ).name
+    : 'No categories';
+
+  // Prepare dashboard data
+  const dashboardData = {
+    totalExpenses,
+    topCategory,
+    categoryData,
+    recentTransactions: transactions.slice(0, 5) // Show last 5 transactions
+  };
+
+  const refreshData = () => {
+    dispatch(fetchTransactions(yearFilter));
+    dispatch(fetchCategories());
+  };
+
+  // Process ALL transactions for monthly bar chart
+  // Custom Tooltip component for BarChart
+  const BarChartTooltip = ({
+    active,
+    payload,
+    label
+  }: {
+    active?: boolean;
+    payload?: Array<{ value?: number | string }>;
+    label?: string;
+  }) => {
+    if (!active || !payload || !payload.length) return null;
+    
+    return (
+      <div className={cn(
+        // Base styles
+        "rounded-lg border p-3 shadow-lg text-sm",
+        // Light mode
+        "border-violet-200 bg-violet-50 text-violet-900",
+        // Dark mode
+        "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"
+      )}>
+        <p className="font-semibold text-violet-700 dark:text-violet-200">Month: {label}</p>
+        <p className="mt-1 font-medium">
+          <span className="text-violet-600 dark:text-violet-300">
+            {formatCurrency(Number(payload[0]?.value) || 0)}
+          </span>
+        </p>
+      </div>
+    );
+  };
+
+  const getMonthlyData = () => {
+    if (!transactions) return [];
+    
+    // Create array for all 12 months
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    // Initialize all months with 0
+    const monthlyData = months.reduce((acc, month) => {
+      acc[month] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Add transaction amounts to respective months
+    transactions.forEach(transaction => {
+      const month = new Date(transaction.date).toLocaleString('default', { month: 'short' });
+      monthlyData[month] += transaction.amount;
+    });
+
+    // Convert to array format for chart
+    return months.map(month => ({
+      name: month,
+      amount: monthlyData[month]
+    }));
+  };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-violet-900 dark:text-violet-300">FinSight - Personal Finance Tracker Dashboard</h1>
-      {isLoading ? (
-        <LoadingContainer message="Loading transactions..." className="text-violet-700 dark:text-violet-300" />
-      ) : (
-        <Card className="p-4 sm:p-6 border-violet-200 dark:border-violet-800 shadow-lg shadow-violet-100 dark:shadow-violet-900/20">
-          <div className="w-full h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fill: '#6b21a8' }}  // text-violet-800
-                  tickLine={{ stroke: '#7c3aed' }}  // violet-600
-                  axisLine={{ stroke: '#7c3aed' }}  // violet-600
-                />
-                <YAxis 
-                  tickFormatter={formatYAxisTick}
-                  tick={{ fill: '#6b21a8' }}  // text-violet-800
-                  tickLine={{ stroke: '#7c3aed' }}  // violet-600
-                  axisLine={{ stroke: '#7c3aed' }}  // violet-600
-                />
-                <Tooltip 
-                  formatter={(value: number) => [
-                    formatYAxisTick(value),
-                    'Amount'
-                  ]}
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #8b5cf6',  // violet-500
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.1)',  // violet-600 shadow
-                    color: '#6b21a8'  // text-violet-800
-                  }}
-                  cursor={{ fill: '#8b5cf620' }}  // violet-500 with opacity
-                />
-                <Bar 
-                  dataKey="amount" 
-                  fill="#7c3aed"  // violet-600
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={60}
-                  activeBar={{ fill: '#6d28d9' }}  // violet-700 for hover
-                />
-              </BarChart>
-            </ResponsiveContainer>
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Header with Year Selector */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-violet-900 dark:text-violet-300">
+            FinSight Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Insights into your spending patterns for {yearFilter}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Select 
+            value={yearFilter.toString()}
+            onValueChange={(value) => handleYearChange(parseInt(value) - yearFilter)}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {[2022, 2023, 2024, 2025].map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={refreshData}
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <DashboardStats 
+        totalExpenses={dashboardData.totalExpenses} 
+        topCategory={dashboardData.topCategory} 
+      />
+
+      {/* Monthly Spending Bar Chart */}
+      <Card className="p-4 space-y-4">
+        <h2 className="text-xl font-semibold">Monthly Spending - {yearFilter}</h2>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={getMonthlyData()}
+              barGap={0}
+              barCategoryGap="10%"
+            >
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#7c3aed" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke="#e9d5ff" 
+                vertical={false}
+                className="dark:stroke-violet-900/50"
+              />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fill: '#6b21a8' }}
+                tickLine={{ stroke: '#8b5cf6' }}
+                axisLine={{ stroke: '#8b5cf6' }}
+                className="dark:text-violet-300"
+              />
+              <YAxis 
+                tickFormatter={(value: number) => formatCurrency(value)}
+                tick={{ fill: '#6b21a8' }}
+                tickLine={{ stroke: '#8b5cf6' }}
+                axisLine={{ stroke: '#8b5cf6' }}
+                className="dark:text-violet-300"
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
+                width={100}
+                tickCount={6}
+              />
+              <RechartsTooltip 
+                content={<BarChartTooltip />}
+                cursor={{ 
+                  fill: 'rgba(196, 181, 253, 0.2)',
+                  radius: 4,
+                  stroke: '#8b5cf6',
+                  strokeWidth: 1
+                }}
+                wrapperStyle={{ zIndex: 1000 }}
+              />
+              <Bar 
+                dataKey="amount" 
+                fill="url(#barGradient)"
+                radius={4}
+                activeBar={{
+                  fill: '#7c3aed',
+                  stroke: '#6d28d9',
+                  strokeWidth: 1,
+                  radius: 4
+                }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Category Breakdown and Recent Transactions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-4 space-y-4">
+          <h2 className="text-xl font-semibold">Spending by Category - {yearFilter}</h2>
+          <div className="h-[300px]">
+            <CategoryPieChart data={dashboardData.categoryData} />
           </div>
         </Card>
-      )}
+        
+        <Card className="p-4 space-y-4">
+          <h2 className="text-xl font-semibold">Recent Transactions</h2>
+          <RecentTransactions transactions={dashboardData.recentTransactions} />
+        </Card>
+      </div>
     </div>
   );
 }

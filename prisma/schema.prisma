@@ -6,10 +6,19 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Category {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  transactions Transaction[]
+}
+
 model Transaction {
   id          Int      @id @default(autoincrement())
   amount      Float
   date        DateTime @default(now())
   description String
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id])
   createdAt   DateTime @default(now())
 }
