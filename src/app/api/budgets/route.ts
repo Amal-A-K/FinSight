@@ -22,29 +22,47 @@ interface BudgetInput {
   categoryId: number;
 }
 
+// Type for raw budget input from request
+interface RawBudgetInput {
+  amount?: unknown;
+  month?: unknown;
+  categoryId?: unknown;
+}
+
 // Helper function to validate budget input
-function validateBudgetInput(data: any): BudgetInput | { error: string } {
-  if (!data.amount || isNaN(Number(data.amount)) || Number(data.amount) <= 0) {
+function validateBudgetInput(data: RawBudgetInput): BudgetInput | { error: string } {
+  // Validate amount
+  const amount = Number(data.amount);
+  if (isNaN(amount) || amount <= 0) {
     return { error: 'Amount must be a positive number' };
   }
 
-  if (!data.month || !/^\d{4}-\d{2}$/.test(data.month)) {
+  // Validate month format
+  const month = String(data.month || '');
+  if (!/^\d{4}-\d{2}$/.test(month)) {
     return { error: 'Invalid month format. Use YYYY-MM' };
   }
 
-  if (!data.categoryId || isNaN(Number(data.categoryId))) {
-    return { error: 'Category ID is required' };
+  // Validate category ID
+  const categoryId = Number(data.categoryId);
+  if (isNaN(categoryId)) {
+    return { error: 'Category ID is required and must be a number' };
   }
 
   return {
-    amount: Number(data.amount),
-    month: data.month,
-    categoryId: Number(data.categoryId)
+    amount,
+    month,
+    categoryId
   };
 }
 
+// Type for error details
+interface ErrorDetails {
+  [key: string]: unknown;
+}
+
 // Helper function to create error responses
-function createErrorResponse(message: string, status: number, details?: any) {
+function createErrorResponse(message: string, status: number, details?: ErrorDetails) {
   return new NextResponse(
     JSON.stringify({
       error: message,
@@ -54,18 +72,30 @@ function createErrorResponse(message: string, status: number, details?: any) {
   );
 }
 
+// Type for Prisma error with code
+interface PrismaErrorWithCode extends Error {
+  code?: string;
+  meta?: {
+    target?: string[];
+  };
+}
+
 // Helper function to handle Prisma errors
 function handlePrismaError(error: unknown) {
-  console.error('Prisma error:', error);
+  const prismaError = error as PrismaErrorWithCode;
   
-  if (error instanceof Error) {
-    if (error.message.includes('Unique constraint')) {
-      return createErrorResponse('A budget for this category and month already exists', 400);
-    }
-    return createErrorResponse(error.message, 500);
+  if (prismaError.code === 'P2002') {
+    return createErrorResponse('A budget with this category already exists for the specified month', 409);
+  }
+  if (prismaError.code === 'P2025') {
+    return createErrorResponse('Category not found', 404);
   }
   
-  return createErrorResponse('An unknown database error occurred', 500);
+  console.error('Prisma error:', error);
+  return createErrorResponse('Database error', 500, { 
+    error: 'An unexpected database error occurred',
+    code: prismaError.code || 'UNKNOWN_ERROR'
+  });
 }
 
 // GET /api/budgets
@@ -95,25 +125,38 @@ export async function GET(request: Request) {
       `;
 
       return NextResponse.json(budgets);
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       return handlePrismaError(dbError);
     }
-  } catch (error) {
-    return createErrorResponse('Internal server error', 500);
+  } catch (error: unknown) {
+    console.error('Error in GET /api/budgets:', error);
+    return createErrorResponse('Internal server error', 500, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
   }
 }
 
 // POST /api/budgets
 export async function POST(request: Request) {
   try {
-    let data;
+    let data: unknown;
     try {
       data = await request.json();
-    } catch (parseError) {
-      return createErrorResponse('Invalid JSON payload', 400);
+    } catch (parseError: unknown) {
+      console.error('JSON parse error in POST /api/budgets:', parseError);
+      return createErrorResponse('Invalid JSON payload', 400, {
+        error: parseError instanceof Error ? parseError.message : 'Invalid JSON'
+      });
     }
 
-    const validation = validateBudgetInput(data);
+    // Ensure data is in the correct format for validation
+    const budgetData: RawBudgetInput = {
+      amount: (data as { amount?: unknown }).amount,
+      month: (data as { month?: unknown }).month,
+      categoryId: (data as { categoryId?: unknown }).categoryId
+    };
+
+    const validation = validateBudgetInput(budgetData);
     if ('error' in validation) {
       return createErrorResponse(validation.error, 400);
     }
@@ -176,15 +219,24 @@ export async function POST(request: Request) {
 
       return NextResponse.json(budget, { status: 201 });
       
-    } catch (dbError) {
-      if (dbError instanceof Error && 'code' in dbError && dbError.code === '23505') {
+    } catch (dbError: unknown) {
+      console.error('Database error in POST /api/budgets:', dbError);
+      
+      if (dbError && typeof dbError === 'object' && 'code' in dbError && dbError.code === '23505') {
         return createErrorResponse('A budget for this category and month already exists', 409);
       }
       
-      return createErrorResponse('Failed to save budget: ' + (dbError instanceof Error ? dbError.message : 'Unknown error'), 500);
+      const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown database error';
+      return createErrorResponse(`Failed to save budget: ${errorMessage}`, 500, {
+        error: 'Database operation failed',
+        details: dbError instanceof Error ? dbError.message : 'Unknown error'
+      });
     }
-  } catch (error) {
-    return createErrorResponse('Internal server error', 500);
+  } catch (error: unknown) {
+    console.error('Unexpected error in POST /api/budgets:', error);
+    return createErrorResponse('Internal server error', 500, {
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
   }
 }
 
@@ -198,9 +250,24 @@ export async function PUT(request: Request) {
       return createErrorResponse('Invalid budget ID', 400);
     }
 
-    const data = await request.json();
-    const validation = validateBudgetInput(data);
-    
+    let data: unknown;
+    try {
+      data = await request.json();
+    } catch (parseError: unknown) {
+      console.error('JSON parse error in PUT /api/budgets:', parseError);
+      return createErrorResponse('Invalid JSON payload', 400, {
+        error: parseError instanceof Error ? parseError.message : 'Invalid JSON'
+      });
+    }
+
+    // Ensure data is in the correct format for validation
+    const budgetData: RawBudgetInput = {
+      amount: (data as { amount?: unknown }).amount,
+      month: (data as { month?: unknown }).month,
+      categoryId: (data as { categoryId?: unknown }).categoryId
+    };
+
+    const validation = validateBudgetInput(budgetData);
     if ('error' in validation) {
       return createErrorResponse(validation.error, 400);
     }
@@ -208,45 +275,72 @@ export async function PUT(request: Request) {
     const { amount, month, categoryId } = validation;
     const budgetId = Number(id);
 
-    // Check if category exists
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId }
-    });
+    try {
+      // Check if category exists
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId }
+      });
 
-    if (!category) {
-      return createErrorResponse('Category not found', 404);
-    }
+      if (!category) {
+        return createErrorResponse('Category not found', 404);
+      }
 
-    // Check if budget exists
-    const existingBudget = await prisma.budget.findUnique({
-      where: { id: budgetId }
-    });
+      // Check if budget exists
+      const existingBudget = await prisma.budget.findUnique({
+        where: { id: budgetId }
+      });
 
-    if (!existingBudget) {
-      return createErrorResponse('Budget not found', 404);
-    }
+      if (!existingBudget) {
+        return createErrorResponse('Budget not found', 404);
+      }
 
-    // Update the budget
-    const updatedBudget = await prisma.budget.update({
-      where: { id: budgetId },
-      data: {
-        amount,
-        month,
-        categoryId
-      },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true
+      // Check for duplicate budget for the same category and month
+      if (existingBudget.categoryId !== categoryId || existingBudget.month !== month) {
+        const duplicateBudget = await prisma.budget.findFirst({
+          where: {
+            categoryId,
+            month,
+            id: { not: budgetId }
           }
+        });
+
+        if (duplicateBudget) {
+          return createErrorResponse('A budget for this category and month already exists', 409);
         }
       }
-    });
 
-    return NextResponse.json(updatedBudget);
-  } catch (error) {
-    return handlePrismaError(error);
+      // Update the budget
+      const updatedBudget = await prisma.budget.update({
+        where: { id: budgetId },
+        data: {
+          amount,
+          month,
+          categoryId,
+          updatedAt: new Date()
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      return NextResponse.json(updatedBudget);
+    } catch (error: unknown) {
+      console.error('Error in PUT /api/budgets:', error);
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        return createErrorResponse('A budget for this category and month already exists', 409);
+      }
+      return handlePrismaError(error);
+    }
+  } catch (error: unknown) {
+    console.error('Unexpected error in PUT /api/budgets:', error);
+    return createErrorResponse('Internal server error', 500, {
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
   }
 }
 
@@ -260,10 +354,12 @@ export async function DELETE(request: Request) {
       return createErrorResponse('Invalid budget ID', 400);
     }
 
+    const budgetId = Number(id);
+    
     try {
       // Check if budget exists using raw query
-      const existingBudgetResult = await prisma.$queryRaw`
-        SELECT "id" FROM "Budget" WHERE "id" = ${Number(id)} LIMIT 1
+      const existingBudgetResult = await prisma.$queryRaw<{id: number}[]>`
+        SELECT "id" FROM "Budget" WHERE "id" = ${budgetId} LIMIT 1
       `;
       
       const existingBudget = Array.isArray(existingBudgetResult) ? existingBudgetResult[0] : null;
@@ -274,14 +370,26 @@ export async function DELETE(request: Request) {
 
       // Delete the budget using raw query
       await prisma.$executeRaw`
-        DELETE FROM "Budget" WHERE "id" = ${Number(id)}
+        DELETE FROM "Budget" WHERE "id" = ${budgetId}
       `;
 
       return new NextResponse(null, { status: 204 });
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error(`Error deleting budget ${budgetId}:`, error);
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === 'P2025') {
+          return createErrorResponse('Budget not found', 404);
+        }
+        if (error.code === 'P2003') {
+          return createErrorResponse('Cannot delete budget due to existing references', 409);
+        }
+      }
       return handlePrismaError(error);
     }
-  } catch (error) {
-    return createErrorResponse('Internal server error', 500);
+  } catch (error: unknown) {
+    console.error('Unexpected error in DELETE /api/budgets:', error);
+    return createErrorResponse('Internal server error', 500, {
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
   }
 }
