@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
+// Extend the NodeJS global type to include prisma
 declare global {
+  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
@@ -17,25 +19,26 @@ const prisma: PrismaClient = global.prisma || (() => {
     process.on('beforeExit', async () => {
       await client.$disconnect();
     });
-    
     // Also handle SIGINT and SIGTERM for better cleanup
     process.on('SIGINT', async () => {
       await client.$disconnect();
       process.exit(0);
     });
-    
     process.on('SIGTERM', async () => {
       await client.$disconnect();
       process.exit(0);
     });
   }
 
+  // Store in global in development to prevent multiple instances
+  if (process.env.NODE_ENV === 'development') {
+    global.prisma = client;
+  }
+  
   return client;
 })();
 
-// Prevent multiple instances in development
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
-}
-
+// Export the Prisma client instance
 export { prisma };
+
+export default prisma;

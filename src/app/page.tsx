@@ -3,10 +3,9 @@
 import { Card } from "@/components/ui/card";
 import { Transaction } from "@/types/transaction";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import { CategoryPieChart } from "@/components/CategoryPieChart";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -19,305 +18,363 @@ import {
   selectTransactionStatus 
 } from "@/features/transactions/transactionSlice";
 import { fetchCategories } from "@/features/categories/categorySlice";
-import { RecentTransactions } from '@/components/RecentTransactions';
+import { fetchBudgets, selectBudgets } from "@/features/budget/budgetSlice";
+import RecentTransactions from '@/components/RecentTransactions';
+import { MonthlyExpenseChart } from '@/components/MonthlyExpenseChart';
 import { Skeleton } from '@/components/ui/skeleton';
-// import { Loading as LoadingContainer } from './loading';
 import Loading from './loading';
 import Link from 'next/link';
-import { DashboardStats } from '@/components/DashboardStats';
-export default function Dashboard() {
+import dynamic from 'next/dynamic';
+
+// Define types for the components to fix TypeScript errors
+interface DashboardStatsProps {
+  totalExpenses: number;
+  topCategory: string;
+  totalBudget?: number;
+  avgMonthly?: number;
+  percentageChange?: number;
+  isLoading?: boolean;
+}
+
+interface CategoryPieChartProps {
+  data: Array<{
+    name: string;
+    value: number;
+    percent?: number;
+  }>;
+}
+
+// Dynamically import components with SSR disabled to avoid window is not defined errors
+const CategoryPieChart = dynamic<CategoryPieChartProps>(
+  () => import('@/components/CategoryPieChart'),
+  { 
+    ssr: false, 
+    loading: () => <Skeleton className="h-[300px] w-full" /> 
+  }
+);
+
+const BudgetVsActualChart = dynamic<{ month: string }>(
+  () => import('@/components/BudgetVsActualChart').then(mod => mod.default || mod),
+  { 
+    ssr: false, 
+    loading: () => <Skeleton className="h-[400px] w-full" /> 
+  }
+);
+
+const SpendingInsights = dynamic<{ month: string }>(
+  () => import('@/components/SpendingInsights').then(mod => mod.default || mod),
+  { 
+    ssr: false, 
+    loading: () => <Skeleton className="h-[300px] w-full" /> 
+  }
+);
+
+const DashboardStats = dynamic<DashboardStatsProps>(
+  () => import('@/components/DashboardStats').then(mod => mod.default || mod),
+  { 
+    ssr: false, 
+    loading: () => <Skeleton className="h-[300px] w-full" /> 
+  }
+);
+
+// Separate component for loading state
+const DashboardLoading = () => (
+  <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+    <Loading />
+  </div>
+);
+
+// Separate component for error state
+const DashboardError = ({ onRetry }: { onRetry: () => void }) => (
+  <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+    <Card className="p-6 text-center">
+      <h2 className="text-xl font-semibold mb-2">Failed to load data</h2>
+      <p className="text-muted-foreground mb-4">There was an error loading your dashboard data.</p>
+      <Button onClick={onRetry}>
+        Retry
+      </Button>
+    </Card>
+  </div>
+);
+
+// Separate component for empty state
+const DashboardEmpty = () => (
+  <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+    <Card className="p-6 text-center">
+      <p className="text-muted-foreground mb-4">No transactions found</p>
+      <Button asChild>
+        <Link href="/add-transaction">Add Your First Transaction</Link>
+      </Button>
+    </Card>
+  </div>
+);
+
+// Move hooks to the top level of the component
+const DashboardContent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector(selectTransactionsByYear);
+  const budgets = useAppSelector(selectBudgets);
   const yearFilter = useAppSelector(selectSelectedYear);
   const status = useAppSelector(selectTransactionStatus);
+  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Calculate total budget for the current month
+  const totalBudget = useMemo(() => {
+    if (!Array.isArray(budgets)) {
+      return 0;
+    }
+    
+    const currentMonthBudgets = budgets.filter(budget => 
+      budget?.month?.startsWith(currentMonth)
+    );
+    
+    return currentMonthBudgets.reduce((sum, budget) => {
+      return sum + (budget?.amount || 0);
+    }, 0);
+  }, [budgets, currentMonth]);
 
-  // Fetch transactions and categories on component mount and when year changes
+  // Load transactions and categories on initial load
   useEffect(() => {
-    const loadData = async () => {
+    let isMounted = true;
+    
+    const loadInitialData = async () => {
       try {
-        if (status === 'idle' || status === 'succeeded' || status === 'failed') {
-          await Promise.all([
-            dispatch(fetchTransactions(yearFilter)),
-            dispatch(fetchCategories())
-          ]);
-        }
+        await Promise.all([
+          dispatch(fetchTransactions(yearFilter)),
+          dispatch(fetchCategories())
+        ]);
       } catch (error) {
-        console.error('Failed to load data:', error);
+        // Error loading initial data
+      } finally {
+        if (isMounted) {
+          setIsInitialLoad(false);
+        }
       }
     };
 
-    loadData();
+    if (isInitialLoad) {
+      loadInitialData();
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [dispatch, yearFilter]);
 
-  const handleYearChange = (increment: number) => {
-    dispatch(setSelectedYear(yearFilter + increment));
-  };
+  // Load budgets whenever the month changes
+  useEffect(() => {
+    const loadBudgets = async () => {
+      try {
+        await dispatch(fetchBudgets(currentMonth));
+      } catch (error) {
+        // Error loading budgets
+      }
+    };
+    
+    loadBudgets();
 
-  if (status === 'loading') {
-    return (
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <Loading />
-      </div>
-    );
-  }
+    // No cleanup needed for this effect
+  }, [dispatch, yearFilter, currentMonth, isInitialLoad]);
 
-  if (status === 'failed') {
-    return (
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <Card className="p-6 text-center">
-          <h2 className="text-xl font-semibold mb-2">Failed to load data</h2>
-          <p className="text-muted-foreground mb-4">There was an error loading your dashboard data.</p>
-          <Button 
-            onClick={() => {
-              dispatch(fetchTransactions(yearFilter));
-              dispatch(fetchCategories());
-            }}
-          >
-            Retry
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  const dashboardData = useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return {
+        categoryData: [],
+        nonZeroCategoryData: [],
+        totalExpenses: 0,
+        topCategory: 'No categories',
+        recentTransactions: [],
+        avgMonthly: 0,
+        percentageChange: 0
+      };
+    }
 
-  if (!transactions) {
-    return (
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <Card className="p-6 text-center">
-          <p className="text-muted-foreground mb-4">No data available</p>
-          <Button asChild>
-            <Link href="/add-transaction">Add Transaction</Link>
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  // Calculate category totals using ALL transactions
-  const categoryData = Object.values(
-    transactions
-      .filter((transaction): transaction is Transaction & { category: NonNullable<Transaction['category']> } => 
-        Boolean(transaction.category)
-      )
+    // Calculate category data - include all transactions since there's no type field
+    const categoryMap = transactions
+      .filter(t => t && t.amount && t.category) // Only include transactions with amount and category
       .reduce<Record<string, { name: string; value: number }>>((acc, transaction) => {
-        const categoryId = transaction.category.id;
+        const categoryId = transaction.category?.id?.toString() || 'uncategorized';
         if (!acc[categoryId]) {
           acc[categoryId] = {
-            name: transaction.category.name,
+            name: transaction.category?.name || 'Uncategorized',
             value: 0
           };
         }
-        acc[categoryId].value += transaction.amount;
+        acc[categoryId].value += Math.abs(Number(transaction.amount));
         return acc;
-      }, {})
-  );
+      }, {});
 
-  // Filter out zero values
-  const nonZeroCategoryData = categoryData.filter(item => item.value > 0);
-
-  // Calculate metrics
-  const totalExpenses = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const topCategory = nonZeroCategoryData.length > 0 
-    ? nonZeroCategoryData.reduce((a, b) => 
-        a.value > b.value ? a : b
-      ).name
-    : 'No categories';
-
-  // Prepare dashboard data
-  const dashboardData = {
-    totalExpenses,
-    topCategory,
-    categoryData,
-    recentTransactions: transactions.slice(0, 5) // Show last 5 transactions
-  };
-
-  const refreshData = () => {
-    dispatch(fetchTransactions(yearFilter));
-    dispatch(fetchCategories());
-  };
-
-  // Process ALL transactions for monthly bar chart
-  // Custom Tooltip component for BarChart
-  const BarChartTooltip = ({
-    active,
-    payload,
-    label
-  }: {
-    active?: boolean;
-    payload?: Array<{ value?: number | string }>;
-    label?: string;
-  }) => {
-    if (!active || !payload || !payload.length) return null;
+    const categoryData = Object.values(categoryMap);
+    const nonZeroCategoryData = categoryData.filter(item => item.value > 0);
     
-    return (
-      <div className={cn(
-        // Base styles
-        "rounded-lg border p-3 shadow-lg text-sm",
-        // Light mode
-        "border-violet-200 bg-violet-50 text-violet-900",
-        // Dark mode
-        "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"
-      )}>
-        <p className="font-semibold text-violet-700 dark:text-violet-200">Month: {label}</p>
-        <p className="mt-1 font-medium">
-          <span className="text-violet-600 dark:text-violet-300">
-            {formatCurrency(Number(payload[0]?.value) || 0)}
-          </span>
-        </p>
-      </div>
-    );
-  };
-
-  const getMonthlyData = () => {
-    if (!transactions) return [];
-    
-    // Create array for all 12 months
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    
-    // Initialize all months with 0
-    const monthlyData = months.reduce((acc, month) => {
-      acc[month] = 0;
+    // For type counts
+    const typeCounts = transactions.reduce((acc, t) => {
+      if (t) {
+        // Find the type property (case insensitive)
+        const typeKey = Object.keys(t).find(key => 
+          key.toLowerCase() === 'type' || 
+          key.toLowerCase() === 'transactiontype' ||
+          key.toLowerCase() === 'transtype'
+        );
+        
+        if (typeKey) {
+          const typeValue = String(t[typeKey as keyof typeof t]).toLowerCase().trim();
+          acc[typeValue] = (acc[typeValue] || 0) + 1;
+        }
+      }
       return acc;
     }, {} as Record<string, number>);
     
-    // Add transaction amounts to respective months
-    transactions.forEach(transaction => {
-      const month = new Date(transaction.date).toLocaleString('default', { month: 'short' });
-      monthlyData[month] += transaction.amount;
-    });
+    // Calculate total expenses based on category
+    const totalExpenses = transactions.reduce((sum, t) => {
+      if (!t || t.amount === undefined || t.amount === null) return sum;
+      const amount = Math.abs(Number(t.amount));
+      return isNaN(amount) ? sum : sum + amount;
+    }, 0);
+    
+    // Calculate average monthly expenses (simple average over 12 months)
+    const avgMonthly = totalExpenses / 12;
 
-    // Convert to array format for chart
-    return months.map(month => ({
-      name: month,
-      amount: monthlyData[month]
-    }));
+    // Find top category
+    const topCategory = nonZeroCategoryData.length > 0 
+      ? nonZeroCategoryData.reduce((a, b) => a.value > b.value ? a : b).name
+      : categoryData.length > 0
+        ? categoryData[0].name
+        : 'No categories';
+
+    // Get recent transactions
+    const recentTransactions = [...transactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+
+    return {
+      categoryData,
+      nonZeroCategoryData,
+      totalExpenses,
+      topCategory: nonZeroCategoryData[0]?.name || 'No categories',
+      recentTransactions,
+      avgMonthly,
+    };
+  }, [transactions]);
+
+  // Generate years from 2020 to current year + 5 for the dropdown
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let y = 2020; y <= currentYear + 5; y++) {
+      years.push(y);
+    }
+    return years;
+  }, []);
+
+  const handleYearSelect = useCallback((value: string) => {
+    dispatch(setSelectedYear(parseInt(value, 10)));
+  }, [dispatch]);
+
+  const handleRetry = useCallback(() => {
+    dispatch(fetchTransactions(yearFilter));
+    dispatch(fetchCategories());
+  }, [dispatch, yearFilter]);
+
+  // Render the appropriate state based on the status
+  const renderContent = () => {
+    if (isInitialLoad) {
+      return <DashboardLoading />;
+    }
+
+    if (status === 'failed') {
+      return <DashboardError onRetry={handleRetry} />;
+    }
+    
+    if (status !== 'succeeded') {
+      return <DashboardLoading />;
+    }
+
+    if (!transactions || transactions.length === 0) {
+      return <DashboardEmpty />;
+    }
+
+    const { categoryData, nonZeroCategoryData, totalExpenses, topCategory, recentTransactions } = dashboardData;
+
+    return (
+      <>
+          <DashboardStats 
+            totalExpenses={dashboardData.totalExpenses}
+            topCategory={dashboardData.topCategory}
+            totalBudget={totalBudget}
+            avgMonthly={dashboardData.avgMonthly}
+            isLoading={status !== 'succeeded' || isInitialLoad}
+          />
+        
+        {/* Monthly Expense Chart */}
+        <MonthlyExpenseChart 
+          transactions={transactions}
+          year={yearFilter}
+          isLoading={isInitialLoad}
+        />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-4">
+            <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
+            <div className="h-[300px]">
+              <CategoryPieChart data={nonZeroCategoryData} />
+            </div>
+          </Card>
+          
+          <Card className="p-4">
+            <h3 className="text-lg font-semibold mb-4">Budget vs Actual</h3>
+            <div className="h-[300px]">
+              <BudgetVsActualChart month={currentMonth} />
+            </div>
+          </Card>
+        </div>
+
+        <div className="w-full">
+          <Card className="p-4">
+            <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+            <RecentTransactions transactions={recentTransactions} />
+          </Card>
+        </div>
+      </>
+    );
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Header with Year Selector */}
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-violet-900 dark:text-violet-300">
-            FinSight Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Insights into your spending patterns for {yearFilter}
+          <h2 className="text-2xl font-bold text-violet-900 dark:text-violet-100">Dashboard Overview</h2>
+          <p className="text-sm text-violet-700 dark:text-violet-300">
+            Financial summary for {yearFilter}
           </p>
         </div>
-        
         <div className="flex items-center gap-2">
-          <Select 
+          <Select
             value={yearFilter.toString()}
-            onValueChange={(value) => handleYearChange(parseInt(value) - yearFilter)}
+            onValueChange={handleYearSelect}
+            disabled={isInitialLoad}
           >
             <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Year" />
+              <SelectValue placeholder="Select year" />
             </SelectTrigger>
             <SelectContent>
-              {[2022, 2023, 2024, 2025].map(year => (
-                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              {years.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={refreshData}
-          >
-            Refresh
-          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <DashboardStats 
-        totalExpenses={dashboardData.totalExpenses} 
-        topCategory={dashboardData.topCategory} 
-      />
-
-      {/* Monthly Spending Bar Chart */}
-      <Card className="p-4 space-y-4">
-        <h2 className="text-xl font-semibold">Monthly Spending - {yearFilter}</h2>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart 
-              data={getMonthlyData()}
-              barGap={0}
-              barCategoryGap="10%"
-            >
-              <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8b5cf6" />
-                  <stop offset="100%" stopColor="#7c3aed" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#e9d5ff" 
-                vertical={false}
-                className="dark:stroke-violet-900/50"
-              />
-              <XAxis 
-                dataKey="name" 
-                tick={{ fill: '#6b21a8' }}
-                tickLine={{ stroke: '#8b5cf6' }}
-                axisLine={{ stroke: '#8b5cf6' }}
-                className="dark:text-violet-300"
-              />
-              <YAxis 
-                tickFormatter={(value: number) => formatCurrency(value)}
-                tick={{ fill: '#6b21a8' }}
-                tickLine={{ stroke: '#8b5cf6' }}
-                axisLine={{ stroke: '#8b5cf6' }}
-                className="dark:text-violet-300"
-                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
-                width={100}
-                tickCount={6}
-              />
-              <RechartsTooltip 
-                content={<BarChartTooltip />}
-                cursor={{ 
-                  fill: 'rgba(196, 181, 253, 0.2)',
-                  radius: 4,
-                  stroke: '#8b5cf6',
-                  strokeWidth: 1
-                }}
-                wrapperStyle={{ zIndex: 1000 }}
-              />
-              <Bar 
-                dataKey="amount" 
-                fill="url(#barGradient)"
-                radius={4}
-                activeBar={{
-                  fill: '#7c3aed',
-                  stroke: '#6d28d9',
-                  strokeWidth: 1,
-                  radius: 4
-                }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      {/* Category Breakdown and Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Spending by Category - {yearFilter}</h2>
-          <div className="h-[300px]">
-            <CategoryPieChart data={dashboardData.categoryData} />
-          </div>
-        </Card>
-        
-        <Card className="p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Recent Transactions</h2>
-          <RecentTransactions transactions={dashboardData.recentTransactions} />
-        </Card>
-      </div>
+      {renderContent()}
     </div>
   );
-}
+};
+
+// Wrap the DashboardContent with a default export
+const Dashboard = () => <DashboardContent />;
+
+export default Dashboard;

@@ -3,7 +3,7 @@ interface RecentTransactionsProps {
   transactions: Transaction[];
 }
 
-export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+export default function RecentTransactions({ transactions }: RecentTransactionsProps) {
   return (
     <div className="space-y-2">
       {transactions.map((transaction) => (

@@ -4,10 +4,12 @@ export interface Transaction {
   date: string;
   description: string;
   createdAt: string;
+  type: 'expense' | 'income';
   category?: {
     id: number;
     name: string;
   };
+  categoryId?: number | null;
 }
 
 export interface MonthlyData {

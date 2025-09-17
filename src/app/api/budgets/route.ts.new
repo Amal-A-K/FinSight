@@ -1,0 +1,179 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+
+// Types
+interface BudgetInput {
+  amount: number;
+  month: string;
+  categoryId: number;
+}
+
+interface BudgetResponse {
+  id: number;
+  amount: number;
+  month: string;
+  category: {
+    id: number;
+    name: string;
+  };
+}
+
+// Helper functions
+function validateBudgetInput(data: any): BudgetInput | { error: string } {
+  // Parse and validate amount
+  const amount = parseFloat(data.amount);
+  if (isNaN(amount) || amount < 0) {
+    return { error: 'Amount must be a positive number' };
+  }
+  
+  // Parse and validate categoryId
+  const categoryId = parseInt(data.categoryId, 10);
+  if (isNaN(categoryId) || categoryId <= 0) {
+    return { error: 'Category ID must be a positive integer' };
+  }
+  
+  // Validate month format (YYYY-MM or YYYY-MM-DD)
+  const month = String(data.month || '');
+  if (!/^\d{4}-\d{2}(-\d{2})?$/.test(month)) {
+    return { error: 'Invalid date format. Use YYYY-MM or YYYY-MM-DD' };
+  }
+  
+  return { amount, month, categoryId };
+}
+
+function createErrorResponse(message: string, status: number, details?: any) {
+  return new NextResponse(
+    JSON.stringify({ 
+      error: message,
+      ...(details && { details })
+    }), 
+    { 
+      status,
+      headers: { 'Content-Type': 'application/json' } 
+    }
+  );
+}
+
+// API Handlers
+export async function GET(request: Request) {
+  try {
+    // Verify authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return createErrorResponse('Unauthorized', 401);
+    }
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get('month');
+
+    // Validate month format if provided
+    if (month && !/^\d{4}-\d{2}(-\d{2})?$/.test(month)) {
+      return createErrorResponse('Invalid month format. Use YYYY-MM or YYYY-MM-DD', 400);
+    }
+
+    // Fetch all budgets, optionally filtered by month
+    const budgets = await (prisma as any).budget.findMany({
+      where: month ? { month: { startsWith: month } } : {},
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+      },
+      orderBy: [
+        { month: 'asc' },
+        { category: { name: 'asc' } }
+      ],
+    });
+
+    return new NextResponse(JSON.stringify(budgets), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error fetching budgets:', error);
+    return createErrorResponse('Failed to fetch budgets', 500);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    // Verify authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return createErrorResponse('Unauthorized', 401);
+    }
+
+    // Parse and validate request body
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return createErrorResponse('Invalid JSON body', 400);
+    }
+
+    // Validate input
+    const validation = validateBudgetInput(body);
+    if ('error' in validation) {
+      return createErrorResponse(validation.error, 400);
+    }
+    const { amount, month, categoryId } = validation;
+
+    // Verify category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category) {
+      return createErrorResponse('Category not found', 404);
+    }
+
+    // Use upsert to handle both create and update in a single operation
+    const budget = await (prisma as any).budget.upsert({
+      where: {
+        categoryId_month: {
+          categoryId,
+          month,
+        },
+      },
+      update: {
+        amount,
+      },
+      create: {
+        amount,
+        month,
+        categoryId,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return new NextResponse(JSON.stringify(budget), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error saving budget:', error);
+    
+    if (error instanceof Error && 
+        'code' in error && 
+        error.code === 'P2002') { // Prisma unique constraint violation
+      return createErrorResponse(
+        'A budget already exists for this category and month', 
+        409
+      );
+    }
+    
+    return createErrorResponse('Failed to save budget', 500);
+  }
+}

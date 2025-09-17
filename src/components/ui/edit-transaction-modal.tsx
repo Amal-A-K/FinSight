@@ -7,6 +7,7 @@ import { Transaction } from '@/types/transaction';
 import { toast } from 'react-toastify';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from 'react';
+import { DatePicker } from './date-picker';
 
 interface Category {
   id: number;
@@ -31,21 +32,14 @@ export function EditTransactionModal({
   const [selectedCategory, setSelectedCategory] = useState<string>(
     transaction.category?.id ? transaction.category.id.toString() : 'no-category'
   );
-  
-  console.log('EditModal: Initial selectedCategory:', selectedCategory);
-  console.log('EditModal: Transaction category:', transaction.category);
 
   useEffect(() => {
-    console.log('EditModal: Fetching categories...');
-    // Fetch categories when the modal opens
     fetch('/api/categories')
       .then(res => res.json())
       .then(data => {
-        console.log('EditModal: Fetched categories:', data);
         setCategories(data);
       })
-      .catch(error => {
-        console.error("EditModal: Error fetching categories:", error);
+      .catch(() => {
         toast.error('Failed to load categories');
       });
   }, []);
@@ -54,21 +48,12 @@ export function EditTransactionModal({
   useEffect(() => {
     const newSelectedCategory = transaction.category?.id ? transaction.category.id.toString() : 'no-category';
     setSelectedCategory(newSelectedCategory);
-    console.log('EditModal: Updated selectedCategory to:', newSelectedCategory);
   }, [transaction]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    // Log the category being sent
-    console.log('EditModal: Sending category data:', {
-      selectedCategory,
-      category: selectedCategory && selectedCategory !== 'no-category' ? {
-        id: parseInt(selectedCategory, 10),
-        name: categories.find(c => c.id.toString() === selectedCategory)?.name || ''
-      } : 'no-category-or-undefined'
-    });
     
     try {
       const updatedTransaction = {
@@ -76,21 +61,20 @@ export function EditTransactionModal({
         amount: parseFloat(formData.get('amount') as string),
         description: formData.get('description') as string,
         date: new Date(formData.get('date') as string).toISOString(),
-        // Send category ID directly as categoryId (or null if no category)
-        categoryId: selectedCategory !== 'no-category' ? selectedCategory : null
+        // Convert categoryId to number or null
+        categoryId: selectedCategory !== 'no-category' ? parseInt(selectedCategory, 10) : null
       };
       
       await onSave(updatedTransaction);
       closeModal();
     } catch (error) {
       toast.error('Failed to update transaction');
-      console.error('Error updating transaction:', error);
     }
   }
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={closeModal} initialFocus={amountInputRef}>
+      <Dialog as="div" className="relative z-50" onClose={closeModal} initialFocus={amountInputRef}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -108,16 +92,16 @@ export function EditTransactionModal({
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
               leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-violet-950 backdrop-blur-md p-6 text-left align-middle shadow-xl transition-all border border-violet-200 dark:border-violet-800">
+              <Dialog.Panel className="w-full max-w-md transform rounded-2xl bg-white dark:bg-violet-950 backdrop-blur-md p-6 text-left align-middle shadow-xl transition-all border border-violet-200 dark:border-violet-800">
                 <Dialog.Title
                   as="h3"
-                  className="text-lg font-medium leading-6 text-violet-900 dark:text-violet-100 mb-4"
+                  className="text-lg font-medium leading-6 text-violet-900 dark:text-violet-100 mt-4 mb-4"
                 >
                   Edit Transaction
                 </Dialog.Title>
@@ -151,12 +135,15 @@ export function EditTransactionModal({
                     <label htmlFor="date" className="block text-violet-700 dark:text-violet-300 mb-1">
                       Date
                     </label>
-                    <Input
-                      type="date"
-                      name="date"
-                      id="date"
-                      defaultValue={transaction ? new Date(transaction.date).toISOString().split('T')[0] : ''}
-                      required
+                    <DatePicker
+                      value={transaction?.date ? new Date(transaction.date).toISOString() : new Date().toISOString()}
+                      onChange={(date) => {
+                        if (transaction) {
+                          // Ensure the date is properly formatted
+                          const formattedDate = new Date(date).toISOString();
+                          transaction.date = formattedDate;
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -165,11 +152,7 @@ export function EditTransactionModal({
                     </label>
                     <Select
                       value={selectedCategory}
-                      onValueChange={(value) => {
-                        console.log('EditModal: Category selected:', value);
-                        setSelectedCategory(value);
-                        console.log('EditModal: New selectedCategory:', value);
-                      }}
+                      onValueChange={setSelectedCategory}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a category" />

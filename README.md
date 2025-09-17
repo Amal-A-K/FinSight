@@ -2,6 +2,47 @@
 
 FinSight is a modern, user-friendly personal finance tracking application built with Next.js 13, featuring a beautiful violet theme and intuitive interface for managing your transactions.
 
+## 🚀 Stage 3 - Budget Management
+
+### New Features Added
+
+#### 1. Budget vs Actual Analysis
+- 📊 Interactive chart comparing budgeted vs actual spending
+- 📈 Visual indicators for over/under budget status
+- 🔄 Real-time updates when transactions are added or modified
+- 🎨 Color-coded bars for quick budget status assessment
+
+#### 2. Budget Management
+- 💰 Set monthly budgets for each category
+- 📱 Easy budget adjustment with intuitive controls
+- 🔔 Visual alerts for categories approaching budget limits
+- 📈 Historical budget tracking and comparison
+
+#### 3. Enhanced Dashboard Insights
+- 📊 Budget utilization percentage for each category
+- 📉 Spending trends vs budget over time
+- 🎯 Progress indicators for budget goals
+- 🔄 Real-time synchronization with transaction data
+
+### Screenshots
+### Budget Management
+| Light Mode | Dark Mode |
+|------------|------------|
+| ![Light Budget View](public/budget-light.png) | ![Dark Budget View](public/budget_dark.png) |
+| *Budget Management Interface* | *Budget Management Interface* |
+| ![Budget vs Actual Light](public/budgetVSactual_light.png) | ![Budget vs Actual Dark](public/budgetVSactual_dark.png) |
+| *Budget vs Actual Chart (Light Mode)* | *Budget vs Actual Chart (Dark Mode)* |
+
+### Dashboard Overview
+| Light Mode | Dark Mode |
+|------------|------------|
+| ![Dashboard Light 1](public/Stage3_Dashboard_light1.png) | ![Dashboard Dark 1](public/Stage3_Dashboard_dark1.png) |
+| *Dashboard View 1 (Light/Dark Mode)* | *Dashboard View 1 (Dark Mode)* |
+| ![Dashboard Light 2](public/Stage3_Dashboard_light2.png) | ![Dashboard Dark 2](public/Stage3_Dashboard_dark2.png) |
+| *Dashboard View 2 (Light/Dark Mode)* | *Dashboard View 2 (Dark Mode)* |
+
+---
+
 ## 🚀 Stage 2 - Categories & Dashboard
 
 ### New Features Added
@@ -64,14 +105,17 @@ FinSight is a modern, user-friendly personal finance tracking application built 
 
 ## Tech Stack
 
-- **Framework**: [Next.js 13](https://nextjs.org/) with App Router
-- **Database**: [Prisma](https://www.prisma.io/) with SQLite
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+
+- **Framework**: [Next.js 15](https://nextjs.org/) with App Router
+- **Database**: [Prisma](https://www.prisma.io/) with PostgreSQL
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Components**: 
   - [Shadcn/ui](https://ui.shadcn.com/) for base components
   - [Recharts](https://recharts.org/) for data visualization
   - [Headless UI](https://headlessui.com/) for accessible modals
-- **Notifications**: [React-Toastify](https://fkhadra.github.io/react-toastify/)
+  -[Lucide React](https://lucide.dev/) for icons
+ **Notifications**: [React-Toastify](https://fkhadra.github.io/react-toastify/)
 - **State Management**: 
   - [Redux Toolkit](https://redux-toolkit.js.org/) for efficient state management
   - [React-Redux](https://react-redux.js.org/) for React integration

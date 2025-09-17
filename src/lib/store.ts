@@ -7,18 +7,20 @@ import { FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist
 import transactionReducer from '@/features/transactions/transactionSlice';
 import categoryReducer from '@/features/categories/categorySlice';
 import uiReducer from '@/features/ui/uiSlice';
+import budgetReducer from '@/features/budget/budgetSlice';
 
 const persistConfig = {
   key: 'root',
   version: 1,
   storage,
-  whitelist: ['transactions', 'categories'],
+  whitelist: ['transactions', 'categories', 'budgets'],
 };
 
 const rootReducer = combineReducers({
   transactions: transactionReducer,
   categories: categoryReducer,
   ui: uiReducer,
+  budgets: budgetReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

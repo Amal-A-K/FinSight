@@ -49,8 +49,7 @@ interface PieData {
   percent?: number;
 }
 
-export function CategoryPieChart({ data }: { data: PieData[] }) {
-
+export default function CategoryPieChart({ data }: { data: PieData[] }) {
   return (
     <div className="w-full h-[300px]">
       <ResponsiveContainer width="100%" height="100%">

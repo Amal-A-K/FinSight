@@ -19,7 +19,7 @@ function isPrismaError(error: unknown): error is PrismaError {
 
 // Helper function to handle Prisma errors
 function handlePrismaError(error: unknown) {
-    console.error('Database error:', error);
+    // Log error details for debugging
 
     if (isPrismaError(error)) {
         if (error.code === 'P2002') {
@@ -52,9 +52,6 @@ export async function GET(request: NextRequest) { // ← Changed to accept NextR
         const { searchParams } = new URL(request.url);
         const year = searchParams.get('year');
         
-        // Debug log
-        console.log('🔍 API received year parameter:', year);
-        
         let whereClause = {};
         
         // If year is provided, filter by year
@@ -70,7 +67,6 @@ export async function GET(request: NextRequest) { // ← Changed to accept NextR
                 }
             };
             
-            console.log('📅 Filtering transactions between:', startDate, 'and', endDate);
         }
         
         const transactions = await prisma.transaction.findMany({
@@ -81,7 +77,6 @@ export async function GET(request: NextRequest) { // ← Changed to accept NextR
             orderBy: { date: 'desc' }
         });
         
-        console.log('📊 Found transactions:', transactions.length);
         
         return NextResponse.json(transactions);
     } catch (error: unknown) {

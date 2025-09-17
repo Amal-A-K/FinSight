@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from 'react-toastify';
@@ -18,22 +19,19 @@ export default function AddTransaction() {
   const [formData, setFormData] = useState({
     amount: "",
     description: "",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
     categoryId: "no-category"
   });
 
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Fetching categories...');
     fetch('/api/categories')
       .then(res => res.json())
       .then(data => {
-        console.log("Fetched categories:", data);
         setCategories(data);
       })
-      .catch(error => {
-        console.error("Error fetching categories:", error);
+      .catch(() => {
         toast.error('Failed to load categories');
       });
   }, []);
@@ -41,16 +39,11 @@ export default function AddTransaction() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log('Form submitted with data:', formData);
-      // Convert categoryId to empty string if 'no-category' is selected
       const payload = {
         ...formData,
         categoryId: formData.categoryId === 'no-category' ? '' : formData.categoryId
       };
       
-      console.log('Final payload before submission:', payload);
-      
-      // Use the Redux thunk to handle the transaction addition
       const response = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,13 +55,9 @@ export default function AddTransaction() {
         throw new Error(data.error || 'Failed to add transaction');
       }
       
-      // Show success message
       toast.success('Transaction added successfully');
-      
-      // Navigate to transactions page
       router.push('/transactions');
     } catch (error) {
-      console.error("Error:", error);
       toast.error(error instanceof Error ? error.message : 'Failed to add transaction');
     }
   };
@@ -100,18 +89,15 @@ export default function AddTransaction() {
         </div>
         <div>
           <label className="block mb-1 text-violet-700 dark:text-violet-300">Date</label>
-          <Input 
-            type="date" 
-            required 
+          <DatePicker
             value={formData.date}
-            onChange={(e) => setFormData({...formData, date: e.target.value})}
+            onChange={(date) => setFormData({...formData, date})}
           />
         </div>
         <div>
           <label className="block mb-1 text-violet-700 dark:text-violet-300">Category</label>
           <Select
             onValueChange={(value) => {
-              console.log('Category selected:', value);
               setFormData(prev => ({
                 ...prev,
                 categoryId: value

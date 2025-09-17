@@ -7,18 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Budget {
+  id          Int         @id @default(autoincrement()) @map("id")
+  amount      Float       @map("amount")
+  month       String      @map("month")  // Format: 'YYYY-MM'
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  Int         @map("categoryId")
+  createdAt   DateTime    @default(now()) @map("createdAt")
+  updatedAt   DateTime    @updatedAt @map("updatedAt")
+
+  @@map("Budget")
+  @@unique([categoryId, month], name: "Budget_categoryId_month_key")  // Ensure one budget per category per month
+}
+
 model Category {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
-  transactions Transaction[]
+  id            Int           @id @default(autoincrement()) @map("id")
+  name          String        @unique @map("name")
+  transactions  Transaction[]
+  budgets       Budget[]     
+  
+  @@map("Category")
 }
 
 model Transaction {
-  id          Int      @id @default(autoincrement())
-  amount      Float
-  date        DateTime @default(now())
-  description String
-  categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
+  id          Int         @id @default(autoincrement()) @map("id")
+  amount      Float       @map("amount")
+  date        DateTime    @default(now()) @map("date")
+  description String      @map("description")
+  categoryId  Int?        @map("categoryId")
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime    @default(now()) @map("createdAt")
+  
+  @@map("Transaction")
 }
