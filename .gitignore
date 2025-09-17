@@ -1,43 +1,115 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
+/yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# Testing
 /coverage
 
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
+# Production
 /build
 
-# misc
+# Misc
 .DS_Store
 *.pem
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env*.sample
 
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
+# Prisma
+/prisma/migrations/
+/prisma/*.db
+/prisma/*.db-journal
+/prisma/*.backup
+
+# Generated files
 /src/generated/prisma
+
+# Editor directories and files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local development
+.env.local
+.env.development
+
+# Build output
+.next
+out
+
+# Cache
+.cache/
+.temp/
+.tmp/
+.temp*
+
+# Logs
+logs
+*.log
+
+# Large media files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.mp4
+*.webm
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.ttf
+*.woff
+*.woff2
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
