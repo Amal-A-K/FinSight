@@ -1,6 +1,6 @@
 'use client';
 
-import { format, addMonths, subMonths, isSameDay, isSameMonth, isSameYear } from 'date-fns';
+import { format, addMonths, subMonths, isSameDay, isSameMonth } from 'date-fns';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './button';

@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+interface BudgetWithCategory {
+  id: number;
+  amount: number;
+  month: string;
+  categoryId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  category: {
+    id: number;
+    name: string;
+  };
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { month: string } }
@@ -8,10 +21,15 @@ export async function GET(
   try {
     const { month } = params;
 
-    const budgets = await prisma.budget.findMany({
+    const budgets: BudgetWithCategory[] = await prisma.budget.findMany({
       where: { month },
       include: {
-        category: true,
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
     });
 

@@ -30,7 +30,7 @@ type BudgetWithCategory = Prisma.BudgetGetPayload<{
 interface BudgetListProps {
   budgets: BudgetWithCategory[];
   onEdit: (budget: BudgetWithCategory) => void;
-  onDelete: (id: number) => Promise<void>;
+  onDelete: (id: number) => Promise<boolean>;
   isLoading?: boolean;
 }
 
@@ -135,19 +135,17 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
   };
 
   const handleConfirmDelete = async () => {
-    if (!budgetToDelete || isDeleting) return;
-
+    if (budgetToDelete === null) return;
+    
     try {
       setIsDeleting(true);
       setDeletingId(budgetToDelete);
       await onDelete(budgetToDelete);
-      toast.success('Budget deleted successfully');
     } catch (error) {
-      toast.error('Failed to delete budget');
+      console.error('Error deleting budget:', error);
     } finally {
-      setDeletingId(null);
       setIsDeleting(false);
-      setBudgetToDelete(null);
+      setDeletingId(null);
       setShowDeleteModal(false);
     }
   };
@@ -251,7 +249,7 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                   {openMenuId === budget.id && (
                     <div
                       data-menu={budget.id}
-                      className="w-36 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900 text-violet-900 dark:text-violet-100 shadow-lg focus:outline-none"
+                      className="w-36 rounded-md border border-violet-200 dark:border-violet-700/80 bg-white dark:bg-violet-950/95 text-violet-900 dark:text-violet-100 shadow-lg focus:outline-none"
                       style={{
                         position: 'fixed',
                         zIndex: 50,
@@ -321,16 +319,17 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                     >
                       <div className="py-1">
                         <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-violet-900 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-800"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-violet-900 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-800/80 transition-colors duration-150"
                           onClick={() => {
                             setOpenMenuId(null);
                             onEdit(budget);
                           }}
                         >
-                          <Pencil className="h-4 w-4" /> Edit
+                          <Pencil className="h-4 w-4 text-violet-600 dark:text-violet-300" /> 
+                          <span>Edit</span>
                         </button>
                         <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-violet-800/40"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-violet-800/80 transition-colors duration-150"
                           onClick={() => {
                             setOpenMenuId(null);
                             handleDeleteClick(budget.id);
@@ -338,11 +337,11 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                           disabled={deletingId === budget.id}
                         >
                           {deletingId === budget.id ? (
-                            <div className="h-4 w-4 border-2 border-red-500 rounded-full border-t-transparent animate-spin"></div>
+                            <div className="h-4 w-4 border-2 border-red-500 dark:border-red-400 rounded-full border-t-transparent animate-spin"></div>
                           ) : (
                             <Trash2 className="h-4 w-4" />
                           )}
-                          Delete
+                          <span>Delete</span>
                         </button>
                       </div>
                     </div>

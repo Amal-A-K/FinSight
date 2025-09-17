@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+interface TableInfo {
+  table_name: string;
+}
+
+interface VersionInfo {
+  version: string;
+}
+
 // Create a new Prisma client with explicit configuration
 const testPrisma = new PrismaClient({
   log: ['query', 'error', 'warn'],
@@ -17,7 +25,7 @@ export async function GET() {
     await testPrisma.$connect();
     
     // 2. Get database version
-    const dbVersion = await testPrisma.$queryRaw`SELECT version()`;
+    const dbVersion = await testPrisma.$queryRaw<VersionInfo[]>`SELECT version()`;
     
     // 3. List all models available in the Prisma client
     const models = Object.keys(testPrisma).filter(
@@ -38,27 +46,24 @@ export async function GET() {
     }
     
     // 5. List all tables in the database
-    type TableInfo = { table_name: string }[];
-    let tables: TableInfo | string = [];
+    let tables: TableInfo[] | string = [];
     try {
       // Use type-safe raw query with proper type annotation
-      const result = await testPrisma.$queryRaw<TableInfo>`
+      tables = await testPrisma.$queryRaw<TableInfo[]>`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public';
       `;
-      tables = result;
     } catch (e) {
       console.error('Error listing tables:', e);
       tables = `Error: ${e instanceof Error ? e.message : 'Unknown error'}`;
     }
     
     return NextResponse.json({
-      success: true,
-      connection: 'Connected to database',
-      databaseVersion: dbVersion,
+      status: 'success',
+      dbVersion: dbVersion?.[0]?.version || 'Unknown',
       models,
-      budgetCheck: budgetResult,
+      budgetResult,
       tables,
       env: {
         databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set',
@@ -66,15 +71,16 @@ export async function GET() {
       }
     });
   } catch (error) {
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Prisma check failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      },
-      { status: 500 }
-    );
+    const errorResponse = {
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: error instanceof Error ? error.stack : undefined,
+        details: error
+      })
+    };
+    
+    return NextResponse.json(errorResponse, { status: 500 });
   } finally {
     await testPrisma.$disconnect();
   }

@@ -1,15 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 import { useTheme } from 'next-themes';
-// Use a simple date formatter instead of date-fns
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-};
-
-import { RootState } from '@/lib/store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   Bar,
   XAxis,
@@ -27,6 +20,7 @@ import { selectAllCategories } from '@/features/categories/categorySlice';
 import { selectBudgets } from '@/features/budget/budgetSlice';
 import { Category } from '@/types/category';
 import { BudgetItem } from '@/features/budget/budgetSlice';
+import { Transaction } from '@/types/transaction';
 
 interface ChartDataItem {
   name: string;
@@ -37,15 +31,13 @@ interface ChartDataItem {
   budgetPercentage: number;
 }
 
-import { Transaction } from '@/types/transaction';
-import { Skeleton } from '@/components/ui/skeleton';
-
 interface BudgetVsActualChartProps {
   month: string;
 }
 
 export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps) {
   const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const categories = useAppSelector(selectAllCategories) as Category[];
   const allTransactions = useAppSelector(selectAllTransactions);
   
@@ -70,9 +62,8 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
   const budgets: BudgetItem[] = useAppSelector(selectBudgets);
   const isLoading = false;
   const isError = false;
-  const chartRef = useRef<any>(null);
 
-  const data = useMemo<ChartDataItem[]>(() => {
+  const chartData = useMemo<ChartDataItem[]>(() => {
     if (!transactions || !budgets || !Array.isArray(budgets)) {
       return [];
     }
@@ -125,7 +116,7 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
       }));
 
     // 3. Create chart data
-    const chartData = filteredBudgets.map(budget => {
+    const chartDataItems = filteredBudgets.map(budget => {
       const budgetCategoryId = budget.categoryId.toString();
       const category = categories.find(c => c.id.toString() === budgetCategoryId);
       const spent = categorySpending[budgetCategoryId] || 0;
@@ -145,15 +136,11 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
       };
     });
 
-    return chartData.sort((a: ChartDataItem, b: ChartDataItem) => b.spent - a.spent);
+    return chartDataItems.sort((a, b) => b.spent - a.spent);
   }, [transactions, budgets, categories, month]);
-
-  const chartData = data; // Use the memoized data
 
   if (isLoading) return <div>Loading...</div>;
   if (isError) return <div>Error loading budgets</div>;
-
-  const isDark = theme === 'dark';
 
   if (chartData.length === 0) {
     return (
@@ -165,7 +152,18 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      value: number;
+      name: string;
+      payload: ChartDataItem;
+      color?: string;
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       const budget = payload[0].value;
       const spent = payload[1].value;
@@ -178,7 +176,7 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
           "border-violet-200 bg-violet-50 text-violet-900",
           "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"
         )}>
-          <p className="font-semibold text-violet-700 dark:text-violet-200">{label}</p>
+          <p className="font-semibold text-violet-700 dark:text-violet-200">{label || 'Category'}</p>
           <div className="space-y-1 mt-1">
             <div className="flex justify-between">
               <span className="text-violet-600 dark:text-violet-300">Budget:</span>
@@ -209,6 +207,24 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
       );
     }
     return null;
+  };
+
+  interface AxisTickProps {
+    x?: number;
+    y?: number;
+    payload?: {
+      value: string;
+    };
+  }
+
+  const CustomizedAxisTick = ({ x, y, payload }: AxisTickProps) => {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={16} textAnchor="middle" fill="#666">
+          {payload?.value}
+        </text>
+      </g>
+    );
   };
 
   const CustomLegend = (props: any) => {
@@ -315,7 +331,7 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
               name="Spent"
               radius={[4, 4, 0, 0]}
             >
-              {chartData.map((entry, index) => (
+              {chartData.map((entry: ChartDataItem, index: number) => (
                 <Cell 
                   key={`spent-${index}`}
                   fill={entry.spent > (entry.budget || 0) ? 'url(#overBudgetGradient)' : 'url(#spentGradient)'}

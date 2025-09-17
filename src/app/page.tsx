@@ -1,32 +1,20 @@
 'use client';
 
 import { Card } from "@/components/ui/card";
-import { Transaction } from "@/types/transaction";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import { formatCurrency } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { 
-  fetchTransactions, 
-  selectTransactionsByYear, 
-  selectSelectedYear, 
-  setSelectedYear, 
-  selectTransactionStatus 
-} from "@/features/transactions/transactionSlice";
+import { fetchTransactions, selectTransactionsByYear, selectSelectedYear, setSelectedYear, selectTransactionStatus } from "@/features/transactions/transactionSlice";
 import { fetchCategories } from "@/features/categories/categorySlice";
 import { fetchBudgets, selectBudgets } from "@/features/budget/budgetSlice";
-import RecentTransactions from '@/components/RecentTransactions';
-import { MonthlyExpenseChart } from '@/components/MonthlyExpenseChart';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Loading from './loading';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { MonthlyExpenseChart } from '@/components/MonthlyExpenseChart';
+import RecentTransactions from '@/components/RecentTransactions';
 
-// Define types for the components to fix TypeScript errors
 interface DashboardStatsProps {
   totalExpenses: number;
   topCategory: string;
@@ -58,14 +46,6 @@ const BudgetVsActualChart = dynamic<{ month: string }>(
   { 
     ssr: false, 
     loading: () => <Skeleton className="h-[400px] w-full" /> 
-  }
-);
-
-const SpendingInsights = dynamic<{ month: string }>(
-  () => import('@/components/SpendingInsights').then(mod => mod.default || mod),
-  { 
-    ssr: false, 
-    loading: () => <Skeleton className="h-[300px] w-full" /> 
   }
 );
 

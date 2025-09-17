@@ -8,7 +8,7 @@ import { EditTransactionModal } from "@/components/ui/edit-transaction-modal";
 import { DeleteTransactionModal } from "@/components/ui/delete-transaction-modal";
 import { formatCurrency } from '@/lib/format';
 import { useAppDispatch } from '@/lib/hooks';
-import { updateTransaction, deleteTransaction } from '@/features/transactions/transactionSlice';
+import { updateTransaction } from '@/features/transactions/transactionSlice';
 
 interface TransactionListProps {
   transactions: Transaction[];

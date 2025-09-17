@@ -134,13 +134,13 @@ const budgetSlice = createSlice({
   },
   extraReducers: (builder) => {
     // Handle fetchBudgets
-    builder.addCase(fetchBudgets.pending, (state) => {
+    builder.addCase(fetchBudgets.pending, (state: BudgetState) => {
       if (!state) return;
       state.loading = true;
       state.error = null;
     });
     
-    builder.addCase(fetchBudgets.fulfilled, (state, action) => {
+    builder.addCase(fetchBudgets.fulfilled, (state: BudgetState, action: PayloadAction<BudgetItem[]>) => {
       if (!state) {
         console.error('State is undefined in fetchBudgets.fulfilled');
         return;
@@ -178,21 +178,18 @@ const budgetSlice = createSlice({
       state.error = null;
     });
     
-    builder.addCase(fetchBudgets.rejected, (state, action) => {
-      if (!state) return;
+    builder.addCase(fetchBudgets.rejected, (state: BudgetState, action) => {
       state.loading = false;
-      state.error = action.payload 
-        ? String(action.payload) 
-        : action.error?.message || 'Failed to fetch budgets';
-      state.items = [];
+      state.error = (action.error as Error)?.message || 'Failed to fetch budgets';
+      state.lastFetched = null;
     });
 
     // saveBudget
-    builder.addCase(saveBudget.pending, (state) => {
+    builder.addCase(saveBudget.pending, (state: BudgetState) => {
       state.loading = true;
       state.error = null;
     });
-    builder.addCase(saveBudget.fulfilled, (state, action) => {
+    builder.addCase(saveBudget.fulfilled, (state: BudgetState, action: PayloadAction<BudgetItem>) => {
       state.loading = false;
       
       // Update existing or add new budget
@@ -209,9 +206,9 @@ const budgetSlice = createSlice({
       
       state.error = null;
     });
-    builder.addCase(saveBudget.rejected, (state, action) => {
+    builder.addCase(saveBudget.rejected, (state: BudgetState, action) => {
       state.loading = false;
-      state.error = action.payload || 'Failed to save budget';
+      state.error = (action.error as Error)?.message || 'Failed to save budget';
     });
   },
 });
