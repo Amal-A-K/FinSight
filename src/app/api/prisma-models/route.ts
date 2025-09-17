@@ -13,14 +13,31 @@ export async function GET() {
       key => !key.startsWith('_') && !key.startsWith('$')
     );
     
+    // Define the shape of our test results
+    interface ModelTestResult {
+      success: boolean;
+      count?: number;
+      error?: string;
+    }
+
     // Test a simple query on each model
-    const modelTests: Record<string, any> = {};
+    const modelTests: Record<string, ModelTestResult> = {};
     
     for (const model of modelNames) {
       try {
-        // @ts-ignore - Dynamically access model methods
-        const count = await testPrisma[model].count();
-        modelTests[model] = { success: true, count };
+        // Use type assertion to handle dynamic model access
+        const prismaModel = testPrisma[model as keyof typeof testPrisma] as 
+          { count: () => Promise<number> } | undefined;
+        
+        if (prismaModel && typeof prismaModel.count === 'function') {
+          const count = await prismaModel.count();
+          modelTests[model] = { success: true, count };
+        } else {
+          modelTests[model] = { 
+            success: false, 
+            error: 'Model does not support count operation'
+          };
+        }
       } catch (error) {
         modelTests[model] = { 
           success: false, 

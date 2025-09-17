@@ -41,17 +41,23 @@ export async function GET() {
   } catch (error) {
     console.error('Test query failed:', error);
     
-    // Try to get more detailed error information
-    let errorDetails = {};
+    // Define the shape of Prisma error
+    interface PrismaError extends Error {
+      code?: string;
+      meta?: Record<string, unknown>;
+    }
+
+    // Get more detailed error information
+    let errorDetails: Record<string, unknown> = {};
+    
     if (error instanceof Error) {
+      const prismaError = error as PrismaError;
       errorDetails = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        // @ts-ignore
-        code: error.code,
-        // @ts-ignore
-        meta: error.meta
+        name: prismaError.name,
+        message: prismaError.message,
+        stack: process.env.NODE_ENV === 'development' ? prismaError.stack : undefined,
+        ...(prismaError.code && { code: prismaError.code }),
+        ...(prismaError.meta && { meta: prismaError.meta })
       };
     }
     

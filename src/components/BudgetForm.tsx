@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, ControllerRenderProps, FieldValues } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -123,12 +123,12 @@ export function BudgetForm({
         <FormField
           control={form.control}
           name="categoryId"
-          render={({ field }: { field: any }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
               <Select 
                 onValueChange={field.onChange} 
-                defaultValue={field.value}
+                value={field.value}
                 disabled={isEditMode}
               >
                 <FormControl>
@@ -152,7 +152,7 @@ export function BudgetForm({
         <FormField
           control={form.control}
           name="amount"
-          render={({ field }: { field: any }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
@@ -161,7 +161,9 @@ export function BudgetForm({
                   step="0.01" 
                   min="0" 
                   placeholder="0.00" 
-                  {...field} 
+                  {...field}
+                  onChange={(e) => field.onChange(e.target.valueAsNumber || '')}
+                  value={field.value}
                 />
               </FormControl>
               <FormMessage />
@@ -172,13 +174,15 @@ export function BudgetForm({
         <FormField
           control={form.control}
           name="month"
-          render={({ field }: { field: any }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Month</FormLabel>
               <FormControl>
                 <Input 
                   type="month" 
-                  {...field} 
+                  {...field}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
                 />
               </FormControl>
               <FormMessage />

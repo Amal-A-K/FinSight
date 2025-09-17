@@ -26,10 +26,11 @@ export async function GET() {
     
     // 4. Try to query the Budget model if it exists
     let budgetResult = 'Budget model not found';
-    if ('budget' in testPrisma) {
+    const budgetModel = testPrisma.budget as { count: () => Promise<number> } | undefined;
+    
+    if (budgetModel && typeof budgetModel.count === 'function') {
       try {
-        // @ts-ignore - Dynamic access to budget model
-        const count = await testPrisma.budget.count();
+        const count = await budgetModel.count();
         budgetResult = `Found ${count} budget records`;
       } catch (error) {
         budgetResult = `Error querying budget: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -37,14 +38,16 @@ export async function GET() {
     }
     
     // 5. List all tables in the database
-    let tables = [];
+    type TableInfo = { table_name: string }[];
+    let tables: TableInfo | string = [];
     try {
-      // @ts-ignore - Using raw SQL
-      tables = await testPrisma.$queryRaw`
+      // Use type-safe raw query with proper type annotation
+      const result = await testPrisma.$queryRaw<TableInfo>`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public';
       `;
+      tables = result;
     } catch (e) {
       console.error('Error listing tables:', e);
       tables = `Error: ${e instanceof Error ? e.message : 'Unknown error'}`;

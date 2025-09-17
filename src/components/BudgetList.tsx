@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { Prisma } from '@prisma/client';
 
 type BudgetWithCategory = Prisma.BudgetGetPayload<{
@@ -35,73 +35,127 @@ interface BudgetListProps {
 }
 
 export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListProps) {
-  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [openUp, setOpenUp] = useState(false);
-  const [alignLeft, setAlignLeft] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<number | null>(null);
   const containerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  
+  // Remove unused state variables but keep the code functional
+  const [, setMenuStyle] = useState<React.CSSProperties | null>(null);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.budget-row-menu')) {
+      const isMenuButton = target.closest('.menu-button') || target.closest('.budget-row-menu');
+      if (!isMenuButton) {
         setOpenMenuId(null);
       }
     };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
 
-  // Recompute dropdown position when menu opens or on resize
-  useEffect(() => {
-    const computePosition = () => {
-      if (openMenuId == null) return;
-      const el = containerRefs.current[openMenuId];
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const viewportH = window.innerHeight;
-      const viewportW = window.innerWidth;
+    const positionMenu = () => {
+      if (openMenuId === null) return;
+      
+      const buttonEl = document.querySelector(`[data-menu-button="${openMenuId}"]`);
+      const menuEl = document.querySelector(`[data-menu="${openMenuId}"]`);
+      
+      if (!buttonEl || !menuEl) return;
+      
+      const buttonRect = buttonEl.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const menuHeight = 96; // Approximate menu height
       const menuWidth = 144; // w-36
-      const menuHeight = 96; // approx for two items
-      const spaceBelow = viewportH - rect.bottom;
-      const spaceRight = viewportW - rect.right;
-      const shouldOpenUp = spaceBelow < menuHeight + 8;
-      const shouldAlignLeft = spaceRight < menuWidth + 8;
-      setOpenUp(shouldOpenUp);
-      setAlignLeft(shouldAlignLeft);
-      // Compute fixed coordinates
-      const top = shouldOpenUp ? Math.max(8, rect.top - menuHeight - 8) : Math.min(viewportH - menuHeight - 8, rect.bottom + 8);
-      let left = shouldAlignLeft ? Math.max(8, rect.left) : rect.right - menuWidth;
-      left = Math.min(left, viewportW - menuWidth - 8);
-      setMenuStyle({ top, left, width: menuWidth, position: 'fixed' });
+      
+      // Calculate available space with more conservative margins
+      const margin = 12; // Increased from 8px to 12px
+      const spaceBelow = viewportHeight - buttonRect.bottom - margin;
+      const spaceAbove = buttonRect.top - margin;
+      const spaceRight = viewportWidth - buttonRect.right - margin;
+      const spaceLeft = buttonRect.left - margin;
+      
+      // Determine position - prefer down if there's enough space, otherwise up
+      const shouldOpenUp = spaceBelow < menuHeight && spaceAbove >= menuHeight;
+      const shouldOpenDown = spaceBelow >= menuHeight || spaceBelow > spaceAbove;
+      
+      // Determine alignment - prefer left if there's enough space, otherwise right
+      const shouldAlignRight = spaceRight < menuWidth && spaceLeft >= spaceRight;
+      
+      // Apply position with CSS classes
+      menuEl.classList.remove('top-full', 'bottom-full', 'left-0', 'right-0');
+      
+      if (shouldOpenUp) {
+        menuEl.classList.add('bottom-full', 'mb-1');
+      } else {
+        menuEl.classList.add('top-full', 'mt-1');
+      }
+      
+      if (shouldAlignRight) {
+        menuEl.classList.add('right-0');
+      } else {
+        menuEl.classList.add('left-0');
+      }
+      
+      // Set data attributes for reference
+      menuEl.setAttribute('data-position', shouldOpenUp ? 'top' : 'bottom');
+      menuEl.setAttribute('data-align', shouldAlignRight ? 'right' : 'left');
     };
-
-    computePosition();
-    window.addEventListener('resize', computePosition);
-    window.addEventListener('scroll', computePosition, true);
+    
+    document.addEventListener('click', onDocClick);
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    
+    // Initial position
+    positionMenu();
+    
     return () => {
-      window.removeEventListener('resize', computePosition);
-      window.removeEventListener('scroll', computePosition, true);
+      document.removeEventListener('click', onDocClick);
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
     };
   }, [openMenuId]);
+  
+  // Toggle menu function
+  const toggleMenu = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenMenuId(prevId => {
+      // If clicking the same button, close the menu
+      if (prevId === id) return null;
+      
+      // Otherwise, open the new menu
+      return id;
+    });
+  };
 
-  const handleDelete = useCallback(async (id: number) => {
-    if (isDeleting) return;
-    
+  const handleDeleteClick = (id: number) => {
+    setBudgetToDelete(id);
+    setShowDeleteModal(true);
+    setOpenMenuId(null); // Close the menu when delete is clicked
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!budgetToDelete || isDeleting) return;
+
     try {
       setIsDeleting(true);
-      setDeletingId(id);
-      await onDelete(id);
+      setDeletingId(budgetToDelete);
+      await onDelete(budgetToDelete);
       toast.success('Budget deleted successfully');
     } catch (error) {
       toast.error('Failed to delete budget');
     } finally {
       setDeletingId(null);
       setIsDeleting(false);
+      setBudgetToDelete(null);
+      setShowDeleteModal(false);
     }
-  }, [isDeleting, onDelete]);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setBudgetToDelete(null);
+  };
 
   if (isLoading) {
     return (
@@ -120,7 +174,17 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
   }
 
   return (
-    <div className="rounded-md border">
+    <>
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Budget"
+        description="Are you sure you want to delete this budget? This action cannot be undone."
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
+        isDeleting={isDeleting}
+      />
+      <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -156,7 +220,7 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDelete(budget.id)}
+                    onClick={() => handleDeleteClick(budget.id)}
                     disabled={deletingId === budget.id}
                   >
                     {deletingId === budget.id ? (
@@ -168,26 +232,92 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                 </div>
 
                 {/* Mobile kebab menu */}
-                <div
+                <div 
                   className="md:hidden relative inline-block text-left budget-row-menu"
-                  ref={(el) => { containerRefs.current[budget.id] = el; }}
+                  ref={el => { containerRefs.current[budget.id] = el; }}
                 >
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenMenuId((curr) => (curr === budget.id ? null : budget.id));
-                    }}
+                    onClick={(e) => toggleMenu(budget.id, e)}
                     aria-haspopup="menu"
                     aria-expanded={openMenuId === budget.id}
+                    className="menu-button relative z-10"
+                    type="button"
+                    data-menu-button={budget.id}
                   >
                     <MoreVertical className="h-5 w-5" />
                   </Button>
                   {openMenuId === budget.id && (
                     <div
-                      style={menuStyle ?? undefined}
-                      className={`rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900 text-violet-900 dark:text-violet-100 shadow-lg focus:outline-none z-50`}
+                      data-menu={budget.id}
+                      className="w-36 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900 text-violet-900 dark:text-violet-100 shadow-lg focus:outline-none"
+                      style={{
+                        position: 'fixed',
+                        zIndex: 50,
+                        opacity: 0,
+                        transform: 'scale(0.95)',
+                        transition: 'opacity 0.2s ease, transform 0.2s ease',
+                        pointerEvents: 'none',
+                      }}
+                      ref={(el) => {
+                        if (!el) return;
+                        
+                        // Position the menu
+                        const buttonEl = el.previousElementSibling as HTMLElement;
+                        if (!buttonEl) return;
+                        
+                        const buttonRect = buttonEl.getBoundingClientRect();
+                        const viewportHeight = window.innerHeight;
+                        const viewportWidth = window.innerWidth;
+                        const menuHeight = 96; // Approximate menu height
+                        const menuWidth = 144; // w-36
+                        const menuMargin = 8; // 0.5rem margin
+                        
+                        // Calculate available space
+                        const spaceBelow = viewportHeight - buttonRect.bottom - menuMargin;
+                        const spaceAbove = buttonRect.top - menuMargin;
+                        const spaceRight = viewportWidth - buttonRect.right - menuMargin;
+                        
+                        // Determine menu position
+                        let topPosition: number;
+                        let leftPosition: number;
+                        
+                        // Vertical positioning
+                        if (spaceBelow >= menuHeight || (spaceBelow < menuHeight && spaceAbove < spaceBelow)) {
+                          // Open below if there's enough space or if there's more space below than above
+                          topPosition = buttonRect.bottom + menuMargin;
+                        } else {
+                          // Otherwise open above
+                          topPosition = buttonRect.top - menuHeight - menuMargin;
+                        }
+                        
+                        // Ensure menu stays within viewport vertically
+                        topPosition = Math.max(menuMargin, Math.min(viewportHeight - menuHeight - menuMargin, topPosition));
+                        
+                        // Horizontal positioning
+                        if (spaceRight >= menuWidth || (spaceRight < menuWidth && buttonRect.left < spaceRight)) {
+                          // Open to the right if there's enough space or if there's more space on the right
+                          leftPosition = buttonRect.left;
+                        } else {
+                          // Otherwise open to the left
+                          leftPosition = buttonRect.right - menuWidth;
+                        }
+                        
+                        // Ensure menu stays within viewport horizontally
+                        leftPosition = Math.max(menuMargin, Math.min(viewportWidth - menuWidth - menuMargin, leftPosition));
+                        
+                        // Apply position
+                        el.style.top = `${topPosition}px`;
+                        el.style.left = `${leftPosition}px`;
+                        
+                        // Trigger animation
+                        requestAnimationFrame(() => {
+                          el.style.opacity = '1';
+                          el.style.transform = 'scale(1)';
+                          el.style.pointerEvents = 'auto';
+                        });
+                      }}
                     >
                       <div className="py-1">
                         <button
@@ -203,7 +333,7 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-violet-800/40"
                           onClick={() => {
                             setOpenMenuId(null);
-                            handleDelete(budget.id);
+                            handleDeleteClick(budget.id);
                           }}
                           disabled={deletingId === budget.id}
                         >
@@ -223,6 +353,7 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }
