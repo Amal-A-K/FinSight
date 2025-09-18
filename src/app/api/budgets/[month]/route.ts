@@ -16,8 +16,9 @@ interface BudgetWithCategory {
 
 export async function GET(
   request: Request,
-  { params }: { params: { month: string } }
+  context: { params: { month: string } }
 ) {
+  const { params } = context;
   try {
     const { month } = params;
 
