@@ -16,10 +16,12 @@ interface BudgetWithCategory {
 
 export async function GET(
   request: Request,
-  { params }: { params: { month: string } } 
+  context: { params: Promise<{ month: string }> }
 ) {
   try {
+    const params = await context.params; // ✅ Await the params promise
     const { month } = params;
+
 
     const budgets: BudgetWithCategory[] = await prisma.budget.findMany({
       where: { month },
