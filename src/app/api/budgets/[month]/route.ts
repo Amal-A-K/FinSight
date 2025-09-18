@@ -14,10 +14,7 @@ interface BudgetWithCategory {
   };
 }
 
-// import { NextRequest } from 'next/server';
-
 export async function GET(
-  // request: NextRequest,
   request: Request,
   { params }: { params: { month: string } } 
 ) {
