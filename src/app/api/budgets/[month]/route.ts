@@ -14,11 +14,12 @@ interface BudgetWithCategory {
   };
 }
 
+import { NextRequest } from 'next/server';
+
 export async function GET(
-  request: Request,
-  context: { params: { month: string } }
+  request: NextRequest,
+  { params }: { params: { month: string } }
 ) {
-  const { params } = context;
   try {
     const { month } = params;
 
