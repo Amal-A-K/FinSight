@@ -19,7 +19,7 @@ export async function GET(
   context: { params: Promise<{ month: string }> }
 ) {
   try {
-    const params = await context.params; // ✅ Await the params promise
+    const params = await context.params; 
     const { month } = params;
 
 
