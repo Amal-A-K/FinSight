@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,9 +12,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Pencil, Trash2, MoreVertical } from 'lucide-react';
-import { toast } from 'react-toastify';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { Prisma } from '@prisma/client';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type BudgetWithCategory = Prisma.BudgetGetPayload<{
   include: {
@@ -37,101 +42,13 @@ interface BudgetListProps {
 export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [budgetToDelete, setBudgetToDelete] = useState<number | null>(null);
-  const containerRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  
-  // Remove unused state variables but keep the code functional
-  const [, setMenuStyle] = useState<React.CSSProperties | null>(null);
-
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const isMenuButton = target.closest('.menu-button') || target.closest('.budget-row-menu');
-      if (!isMenuButton) {
-        setOpenMenuId(null);
-      }
-    };
-
-    const positionMenu = () => {
-      if (openMenuId === null) return;
-      
-      const buttonEl = document.querySelector(`[data-menu-button="${openMenuId}"]`);
-      const menuEl = document.querySelector(`[data-menu="${openMenuId}"]`);
-      
-      if (!buttonEl || !menuEl) return;
-      
-      const buttonRect = buttonEl.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      const menuHeight = 96; // Approximate menu height
-      const menuWidth = 144; // w-36
-      
-      // Calculate available space with more conservative margins
-      const margin = 12; // Increased from 8px to 12px
-      const spaceBelow = viewportHeight - buttonRect.bottom - margin;
-      const spaceAbove = buttonRect.top - margin;
-      const spaceRight = viewportWidth - buttonRect.right - margin;
-      const spaceLeft = buttonRect.left - margin;
-      
-      // Determine position - prefer down if there's enough space, otherwise up
-      const shouldOpenUp = spaceBelow < menuHeight && spaceAbove >= menuHeight;
-      const shouldOpenDown = spaceBelow >= menuHeight || spaceBelow > spaceAbove;
-      
-      // Determine alignment - prefer left if there's enough space, otherwise right
-      const shouldAlignRight = spaceRight < menuWidth && spaceLeft >= spaceRight;
-      
-      // Apply position with CSS classes
-      menuEl.classList.remove('top-full', 'bottom-full', 'left-0', 'right-0');
-      
-      if (shouldOpenUp) {
-        menuEl.classList.add('bottom-full', 'mb-1');
-      } else {
-        menuEl.classList.add('top-full', 'mt-1');
-      }
-      
-      if (shouldAlignRight) {
-        menuEl.classList.add('right-0');
-      } else {
-        menuEl.classList.add('left-0');
-      }
-      
-      // Set data attributes for reference
-      menuEl.setAttribute('data-position', shouldOpenUp ? 'top' : 'bottom');
-      menuEl.setAttribute('data-align', shouldAlignRight ? 'right' : 'left');
-    };
-    
-    document.addEventListener('click', onDocClick);
-    window.addEventListener('resize', positionMenu);
-    window.addEventListener('scroll', positionMenu, true);
-    
-    // Initial position
-    positionMenu();
-    
-    return () => {
-      document.removeEventListener('click', onDocClick);
-      window.removeEventListener('resize', positionMenu);
-      window.removeEventListener('scroll', positionMenu, true);
-    };
-  }, [openMenuId]);
-  
-  // Toggle menu function
-  const toggleMenu = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpenMenuId(prevId => {
-      // If clicking the same button, close the menu
-      if (prevId === id) return null;
-      
-      // Otherwise, open the new menu
-      return id;
-    });
-  };
 
   const handleDeleteClick = (id: number) => {
     setBudgetToDelete(id);
     setShowDeleteModal(true);
-    setOpenMenuId(null); // Close the menu when delete is clicked
+    // The dropdown will close automatically when the modal opens
   };
 
   const handleConfirmDelete = async () => {
@@ -230,122 +147,41 @@ export function BudgetList({ budgets, onEdit, onDelete, isLoading }: BudgetListP
                 </div>
 
                 {/* Mobile kebab menu */}
-                <div 
-                  className="md:hidden relative inline-block text-left budget-row-menu"
-                  ref={el => { containerRefs.current[budget.id] = el; }}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => toggleMenu(budget.id, e)}
-                    aria-haspopup="menu"
-                    aria-expanded={openMenuId === budget.id}
-                    className="menu-button relative z-10"
-                    type="button"
-                    data-menu-button={budget.id}
-                  >
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                  {openMenuId === budget.id && (
-                    <div
-                      data-menu={budget.id}
-                      className="w-36 rounded-md border border-violet-200 dark:border-violet-700/80 bg-white dark:bg-violet-950/95 text-violet-900 dark:text-violet-100 shadow-lg focus:outline-none"
-                      style={{
-                        position: 'fixed',
-                        zIndex: 50,
-                        opacity: 0,
-                        transform: 'scale(0.95)',
-                        transition: 'opacity 0.2s ease, transform 0.2s ease',
-                        pointerEvents: 'none',
-                      }}
-                      ref={(el) => {
-                        if (!el) return;
-                        
-                        // Position the menu
-                        const buttonEl = el.previousElementSibling as HTMLElement;
-                        if (!buttonEl) return;
-                        
-                        const buttonRect = buttonEl.getBoundingClientRect();
-                        const viewportHeight = window.innerHeight;
-                        const viewportWidth = window.innerWidth;
-                        const menuHeight = 96; // Approximate menu height
-                        const menuWidth = 144; // w-36
-                        const menuMargin = 8; // 0.5rem margin
-                        
-                        // Calculate available space
-                        const spaceBelow = viewportHeight - buttonRect.bottom - menuMargin;
-                        const spaceAbove = buttonRect.top - menuMargin;
-                        const spaceRight = viewportWidth - buttonRect.right - menuMargin;
-                        
-                        // Determine menu position
-                        let topPosition: number;
-                        let leftPosition: number;
-                        
-                        // Vertical positioning
-                        if (spaceBelow >= menuHeight || (spaceBelow < menuHeight && spaceAbove < spaceBelow)) {
-                          // Open below if there's enough space or if there's more space below than above
-                          topPosition = buttonRect.bottom + menuMargin;
-                        } else {
-                          // Otherwise open above
-                          topPosition = buttonRect.top - menuHeight - menuMargin;
-                        }
-                        
-                        // Ensure menu stays within viewport vertically
-                        topPosition = Math.max(menuMargin, Math.min(viewportHeight - menuHeight - menuMargin, topPosition));
-                        
-                        // Horizontal positioning
-                        if (spaceRight >= menuWidth || (spaceRight < menuWidth && buttonRect.left < spaceRight)) {
-                          // Open to the right if there's enough space or if there's more space on the right
-                          leftPosition = buttonRect.left;
-                        } else {
-                          // Otherwise open to the left
-                          leftPosition = buttonRect.right - menuWidth;
-                        }
-                        
-                        // Ensure menu stays within viewport horizontally
-                        leftPosition = Math.max(menuMargin, Math.min(viewportWidth - menuWidth - menuMargin, leftPosition));
-                        
-                        // Apply position
-                        el.style.top = `${topPosition}px`;
-                        el.style.left = `${leftPosition}px`;
-                        
-                        // Trigger animation
-                        requestAnimationFrame(() => {
-                          el.style.opacity = '1';
-                          el.style.transform = 'scale(1)';
-                          el.style.pointerEvents = 'auto';
-                        });
-                      }}
-                    >
-                      <div className="py-1">
-                        <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-violet-900 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-800/80 transition-colors duration-150"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            onEdit(budget);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 text-violet-600 dark:text-violet-300" /> 
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-violet-800/80 transition-colors duration-150"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            handleDeleteClick(budget.id);
-                          }}
-                          disabled={deletingId === budget.id}
-                        >
-                          {deletingId === budget.id ? (
-                            <div className="h-4 w-4 border-2 border-red-500 dark:border-red-400 rounded-full border-t-transparent animate-spin"></div>
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                <div className="md:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 p-0"
+                      >
+                        <span className="sr-only">Open menu</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40 bg-white dark:bg-violet-950 border-violet-200 dark:border-violet-800">
+                      <DropdownMenuItem 
+                        onClick={() => onEdit(budget)}
+                        className="cursor-pointer"
+                        disabled={deletingId === budget.id}
+                      >
+                        <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <span>Edit</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteClick(budget.id)}
+                        className="cursor-pointer text-destructive focus:text-destructive"
+                        disabled={deletingId === budget.id}
+                      >
+                        {deletingId === budget.id ? (
+                          <div className="mr-2 h-4 w-4 border-2 border-current rounded-full border-t-transparent animate-spin"></div>
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>
