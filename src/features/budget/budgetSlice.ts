@@ -29,7 +29,21 @@ const initialState: BudgetState = {
 };
 
 // Helper function to normalize budget data
-const normalizeBudget = (budget: any): BudgetItem => {
+interface RawBudgetItem {
+  id: string | number;
+  amount: string | number;
+  month: string;
+  categoryId?: number;
+  categoryid?: number;
+  category?: {
+    id: number;
+    name: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const normalizeBudget = (budget: RawBudgetItem): BudgetItem => {
   // Handle both categoryId and categoryid properties (case sensitivity issue from API)
   let categoryId = Number(budget.categoryId || budget.categoryid);
   if (isNaN(categoryId) || categoryId === 0) {
@@ -55,7 +69,7 @@ export const fetchBudgets = createAsyncThunk<
   BudgetItem[],
   string | undefined,
   { state: RootState; rejectValue: string }
->('budgets/fetchBudgets', async (month, { getState, rejectWithValue }) => {
+>('budgets/fetchBudgets', async (month, { rejectWithValue }) => {
   const url = month ? `/api/budgets?month=${month}` : '/api/budgets';
   
   try {
@@ -66,8 +80,8 @@ export const fetchBudgets = createAsyncThunk<
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        // Error parsing error response
+      } catch {
+        // Error parsing error response - we can ignore the error since we have a fallback message
       }
       throw new Error(errorMessage);
     }

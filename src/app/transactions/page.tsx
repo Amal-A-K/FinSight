@@ -3,7 +3,6 @@
 import { Card } from "@/components/ui/card";
 import { TransactionList } from "@/components/ui/transaction-list";
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { fetchTransactions, deleteTransaction, selectAllTransactions, selectTransactionStatus } from "@/features/transactions/transactionSlice";
 import { toast } from 'react-toastify';
@@ -11,7 +10,6 @@ import Loading from "./loading";
 
 export default function TransactionsPage() {
   const dispatch = useAppDispatch();
-  const router = useRouter();
   const transactions = useAppSelector(selectAllTransactions);
   const status = useAppSelector(selectTransactionStatus);
   

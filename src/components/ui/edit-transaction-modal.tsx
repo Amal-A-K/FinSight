@@ -30,7 +30,12 @@ export function EditTransactionModal({
   const amountInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    transaction.category?.id ? transaction.category.id.toString() : 'no-category'
+    transaction?.categoryId?.toString() || 'no-category'
+  );
+  const [amount, setAmount] = useState<string>(transaction?.amount?.toString() || '');
+  const [description, setDescription] = useState<string>(transaction?.description || '');
+  const [selectedDate, setSelectedDate] = useState<string>(
+    transaction?.date ? new Date(transaction.date).toISOString() : new Date().toISOString()
   );
 
   useEffect(() => {
@@ -44,28 +49,27 @@ export function EditTransactionModal({
       });
   }, []);
 
-  // Update selectedCategory when transaction changes
   useEffect(() => {
     const newSelectedCategory = transaction.category?.id ? transaction.category.id.toString() : 'no-category';
     setSelectedCategory(newSelectedCategory);
   }, [transaction]);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
+    const formData = new FormData(e.target as HTMLFormElement);
     
     try {
-      const updatedTransaction = {
+      const updatedTransaction: Transaction = {
         ...transaction,
         amount: parseFloat(formData.get('amount') as string),
         description: formData.get('description') as string,
-        date: new Date(formData.get('date') as string).toISOString(),
+        date: selectedDate,
         // Convert categoryId to number or null
         categoryId: selectedCategory !== 'no-category' ? parseInt(selectedCategory, 10) : null
       };
       
       await onSave(updatedTransaction);
+      toast.success('Transaction updated successfully!');
       closeModal();
     } catch (error) {
       toast.error('Failed to update transaction');
@@ -111,11 +115,16 @@ export function EditTransactionModal({
                       Amount
                     </label>
                     <Input
-                      ref={amountInputRef}
                       type="number"
-                      name="amount"
                       id="amount"
-                      defaultValue={transaction?.amount}
+                      name="amount"
+                      ref={amountInputRef}
+                      className="w-full"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
                       required
                     />
                   </div>
@@ -124,10 +133,12 @@ export function EditTransactionModal({
                       Description
                     </label>
                     <Input
-                      type="text"
-                      name="description"
                       id="description"
-                      defaultValue={transaction?.description}
+                      name="description"
+                      className="w-full"
+                      placeholder="Enter description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
                       required
                     />
                   </div>
@@ -136,13 +147,10 @@ export function EditTransactionModal({
                       Date
                     </label>
                     <DatePicker
-                      value={transaction?.date ? new Date(transaction.date).toISOString() : new Date().toISOString()}
+                      value={selectedDate}
                       onChange={(date) => {
-                        if (transaction) {
-                          // Ensure the date is properly formatted
-                          const formattedDate = new Date(date).toISOString();
-                          transaction.date = formattedDate;
-                        }
+                        const formattedDate = new Date(date).toISOString();
+                        setSelectedDate(formattedDate);
                       }}
                     />
                   </div>

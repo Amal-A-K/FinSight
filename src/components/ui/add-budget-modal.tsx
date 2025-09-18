@@ -50,21 +50,18 @@ export function AddBudgetModal({
     
     const fetchCategories = async () => {
       try {
-        const res = await fetch('/api/categories');
-        if (!res.ok) {
-          throw new Error('Failed to fetch categories');
-        }
-        const data = await res.json();
-        if (isMounted && Array.isArray(data)) {
-          setCategories(data);
-        }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        toast.error('Failed to load categories');
-      } finally {
+        const response = await fetch('/api/categories');
         if (isMounted) {
+          const data = await response.json();
+          setCategories(data);
+          if (data.length > 0 && !selectedCategory) {
+            setSelectedCategory(data[0].id.toString());
+          }
           setIsLoading(false);
         }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -77,7 +74,7 @@ export function AddBudgetModal({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [categories.length, selectedCategory]);
 
   // Reset form when modal is opened/closed or initialData changes
   useEffect(() => {
@@ -100,7 +97,7 @@ export function AddBudgetModal({
         setMonth(initialMonth || `${year}-${month}`);
       }
     }
-  }, [isOpen, initialData, categories.length, initialMonth]);
+  }, [isOpen, initialData, categories, initialMonth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { useTheme } from 'next-themes';
-import { cn } from '@/lib/utils';
 import {
   Bar,
   XAxis,
@@ -39,6 +38,16 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const categories = useAppSelector(selectAllCategories) as Category[];
+  
+  // Theme colors - using card's background colors
+  const colors = {
+    background: 'transparent', // Make chart background transparent to show card's background
+    text: isDark ? '#e9d5ff' : '#4c1d95',
+    grid: isDark ? 'rgba(167, 139, 250, 0.2)' : 'rgba(139, 92, 246, 0.1)',
+    tooltipBg: isDark ? 'rgba(76, 29, 149, 0.9)' : '#f5f3ff', // Matches MonthlyExpenseChart's dark:bg-violet-900/90
+    tooltipText: isDark ? '#f5f3ff' : '#4c1d95',
+    tooltipBorder: isDark ? 'rgba(124, 58, 237, 0.5)' : '#c4b5fd',
+  };
   const allTransactions = useAppSelector(selectAllTransactions);
   
   // Format the month to ensure consistency (YYYY-MM)
@@ -171,33 +180,33 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
       const isOverBudget = spent > budget;
       
       return (
-        <div className={cn(
-          "rounded-lg border p-3 shadow-lg text-sm",
-          "border-violet-200 bg-violet-50 text-violet-900",
-          "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"
-        )}>
-          <p className="font-semibold text-violet-700 dark:text-violet-200">{label || 'Category'}</p>
+        <div 
+          className={"rounded-lg border p-3 shadow-lg text-sm " +
+          "border-violet-200 bg-violet-50 text-violet-900 " +
+          "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"}
+        >
+          <p className="font-semibold" style={{ color: isDark ? '#e9d5ff' : '#5b21b6' }}>{label || 'Category'}</p>
           <div className="space-y-1 mt-1">
             <div className="flex justify-between">
-              <span className="text-violet-600 dark:text-violet-300">Budget:</span>
+              <span style={{ color: isDark ? '#c4b5fd' : '#6d28d9' }}>Budget:</span>
               <span className="font-medium">₹{budget.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-violet-600 dark:text-violet-300">Spent:</span>
-              <span className={`font-medium ${isOverBudget ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+              <span style={{ color: isDark ? '#c4b5fd' : '#6d28d9' }}>Spent:</span>
+              <span className="font-medium" style={{ color: isOverBudget ? '#ef4444' : (isDark ? '#34d399' : '#059669') }}>
                 ₹{spent.toFixed(2)} {isOverBudget && '(Over)'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-violet-600 dark:text-violet-300">Remaining:</span>
-              <span className={`font-medium ${remaining < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+              <span style={{ color: isDark ? '#c4b5fd' : '#6d28d9' }}>Remaining:</span>
+              <span className="font-medium" style={{ color: remaining < 0 ? '#ef4444' : (isDark ? '#34d399' : '#059669') }}>
                 ₹{Math.abs(remaining).toFixed(2)} {remaining < 0 ? '(Over)' : '(Left)'}
               </span>
             </div>
             {budget > 0 && (
               <div className="flex justify-between">
-                <span className="text-violet-600 dark:text-violet-300">Utilization:</span>
-                <span className={`font-medium ${isOverBudget ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                <span style={{ color: isDark ? '#c4b5fd' : '#6d28d9' }}>Utilization:</span>
+                <span className="font-medium" style={{ color: isOverBudget ? '#ef4444' : (isDark ? '#34d399' : '#059669') }}>
                   {Math.min(100, (spent / budget) * 100).toFixed(1)}%
                 </span>
               </div>
@@ -209,43 +218,43 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
     return null;
   };
 
-  interface AxisTickProps {
-    x?: number;
-    y?: number;
-    payload?: {
+  interface CustomLegendProps {
+    payload?: Array<{
       value: string;
-    };
+      color?: string;
+    }>;
   }
 
-  const CustomizedAxisTick = ({ x, y, payload }: AxisTickProps) => {
+  const CustomLegend = ({}: CustomLegendProps) => {
     return (
-      <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={16} textAnchor="middle" fill="#666">
-          {payload?.value}
-        </text>
-      </g>
-    );
-  };
-
-  const CustomLegend = (props: any) => {
-    const { payload } = props;
-    return (
-      <div className="flex flex-wrap items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+      <div 
+        className="flex flex-wrap items-center justify-center gap-4 mt-2 text-xs"
+        style={{ color: colors.text }}
+      >
         {/* Budget Legend */}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-gradient-to-b from-violet-500 to-violet-600" />
+          <div 
+            className="w-3 h-3 rounded-sm" 
+            style={{ background: 'linear-gradient(to bottom, #8b5cf6, #7c3aed)' }}
+          />
           <span>Budget</span>
         </div>
         
         {/* Spent (Under Budget) */}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-gradient-to-b from-green-500 to-green-600" />
+          <div 
+            className="w-3 h-3 rounded-sm"
+            style={{ background: isDark ? 'linear-gradient(to bottom, #34d399, #059669)' : 'linear-gradient(to bottom, #10b981, #059669)' }}
+          />
           <span>Spent (Under Budget)</span>
         </div>
         
         {/* Spent (Over Budget) */}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-gradient-to-b from-red-500 to-red-600" />
+          <div 
+            className="w-3 h-3 rounded-sm"
+            style={{ background: 'linear-gradient(to bottom, #ef4444, #dc2626)' }}
+          />
           <span>Spent (Over Budget)</span>
         </div>
       </div>
@@ -253,8 +262,8 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
   };
 
   return (
-    <div className="w-full h-full">
-      <div className="h-full w-full">
+    <div className="w-full h-full bg-white dark:bg-violet-950/30 rounded-lg">
+      <div className="h-full w-full p-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
@@ -271,44 +280,61 @@ export default function BudgetVsActualChart({ month }: BudgetVsActualChartProps)
             <defs>
               <linearGradient id="budgetGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#8b5cf6" />
-                <stop offset="100%" stopColor="#7c3aed" />
+                <stop offset="100%" stopColor={isDark ? '#6d28d9' : '#7c3aed'} />
               </linearGradient>
               <linearGradient id="spentGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10b981" />
-                <stop offset="100%" stopColor="#059669" />
+                <stop offset="0%" stopColor={isDark ? '#34d399' : '#10b981'} />
+                <stop offset="100%" stopColor={isDark ? '#059669' : '#047857'} />
               </linearGradient>
               <linearGradient id="overBudgetGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#ef4444" />
-                <stop offset="100%" stopColor="#dc2626" />
+                <stop offset="100%" stopColor={isDark ? '#dc2626' : '#b91c1c'} />
               </linearGradient>
             </defs>
             <CartesianGrid 
               strokeDasharray="3 3" 
-              stroke="#e9d5ff" 
+              stroke={isDark ? 'rgba(167, 139, 250, 0.2)' : 'rgba(139, 92, 246, 0.15)'}
               vertical={false}
-              className="dark:stroke-violet-900/50"
             />
             <XAxis 
               dataKey="name" 
-              tick={{ fill: '#6b21a8' }}
-              tickLine={{ stroke: '#8b5cf6' }}
-              axisLine={{ stroke: '#8b5cf6' }}
-              className="dark:text-violet-300"
+              tick={{ 
+                fill: isDark ? '#e9d5ff' : '#4c1d95',
+                fontSize: 12
+              }}
+              tickLine={{ 
+                stroke: isDark ? '#8b5cf6' : '#7c3aed',
+                strokeWidth: 1
+              }}
+              axisLine={{ 
+                stroke: isDark ? '#7c3aed' : '#6d28d9',
+                strokeWidth: 1
+              }}
+              tickMargin={8}
             />
             <YAxis 
               tickFormatter={(value) => `₹${value}`}
-              tick={{ fill: '#6b21a8' }}
-              tickLine={{ stroke: '#8b5cf6' }}
-              axisLine={{ stroke: '#8b5cf6' }}
-              className="dark:text-violet-300"
+              tick={{ 
+                fill: isDark ? '#e9d5ff' : '#4c1d95',
+                fontSize: 12
+              }}
+              tickLine={{ 
+                stroke: isDark ? '#8b5cf6' : '#7c3aed',
+                strokeWidth: 1
+              }}
+              axisLine={{ 
+                stroke: isDark ? '#7c3aed' : '#6d28d9',
+                strokeWidth: 1
+              }}
               width={80}
+              tickMargin={8}
             />
             <Tooltip 
               content={<CustomTooltip />} 
               cursor={{ 
-                fill: 'rgba(196, 181, 253, 0.2)',
+                fill: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(199, 210, 254, 0.3)',
                 radius: 4,
-                stroke: '#8b5cf6',
+                stroke: isDark ? '#8b5cf6' : '#7c3aed',
                 strokeWidth: 1
               }}
               wrapperStyle={{ zIndex: 1000 }}

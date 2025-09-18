@@ -148,14 +148,12 @@ const DashboardContent = () => {
       try {
         await dispatch(fetchBudgets(currentMonth));
       } catch (error) {
-        // Error loading budgets
+        console.error('Error loading budgets:', error);
       }
     };
     
     loadBudgets();
-
-    // No cleanup needed for this effect
-  }, [dispatch, yearFilter, currentMonth, isInitialLoad]);
+  }, [dispatch, currentMonth]);
 
   const dashboardData = useMemo(() => {
     if (!transactions || transactions.length === 0) {
@@ -187,24 +185,6 @@ const DashboardContent = () => {
 
     const categoryData = Object.values(categoryMap);
     const nonZeroCategoryData = categoryData.filter(item => item.value > 0);
-    
-    // For type counts
-    const typeCounts = transactions.reduce((acc, t) => {
-      if (t) {
-        // Find the type property (case insensitive)
-        const typeKey = Object.keys(t).find(key => 
-          key.toLowerCase() === 'type' || 
-          key.toLowerCase() === 'transactiontype' ||
-          key.toLowerCase() === 'transtype'
-        );
-        
-        if (typeKey) {
-          const typeValue = String(t[typeKey as keyof typeof t]).toLowerCase().trim();
-          acc[typeValue] = (acc[typeValue] || 0) + 1;
-        }
-      }
-      return acc;
-    }, {} as Record<string, number>);
     
     // Calculate total expenses based on category
     const totalExpenses = transactions.reduce((sum, t) => {
@@ -275,7 +255,7 @@ const DashboardContent = () => {
       return <DashboardEmpty />;
     }
 
-    const { categoryData, nonZeroCategoryData, totalExpenses, topCategory, recentTransactions } = dashboardData;
+    const { nonZeroCategoryData, recentTransactions } = dashboardData;
 
     return (
       <>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+// Removed unused useRouter import
 import { format, startOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { MonthPicker } from '@/components/ui/month-picker';
@@ -98,7 +98,6 @@ const BudgetStats = ({
 
 // Main component with error boundary
 export default function BudgetsPage() {
-  const router = useRouter();
   const [budgets, setBudgets] = useState<BudgetWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,13 +159,7 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     fetchBudgets();
-  }, [selectedMonth]);
-
-  const handleFormSubmit = () => {
-    setIsFormOpen(false);
-    setEditingBudget(null);
-    fetchBudgets();
-  };
+  }, [selectedMonth, fetchBudgets]);
 
   const handleEdit = (budget: BudgetWithCategory) => {
     setEditingBudget(budget);

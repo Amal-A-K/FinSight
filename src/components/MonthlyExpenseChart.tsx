@@ -60,9 +60,9 @@ export function MonthlyExpenseChart({ transactions, isLoading, year }: MonthlyEx
         "border-violet-200 bg-violet-50 text-violet-900 " +
         "dark:border-violet-900/50 dark:bg-violet-900/90 dark:text-violet-50"
       }>
-        <p className="font-semibold text-violet-700 dark:text-violet-200">Month: {label}</p>
+        <p className="font-semibold text-violet-700 dark:text-white">Month: {label}</p>
         <div className="mt-1">
-          <span className="text-violet-600 dark:text-violet-300">Amount: </span>
+          <span className="text-violet-600 dark:text-white/80">Amount: </span>
           <span className="font-medium">
             {formatCurrency(Number(payload[0]?.value) || 0)}
           </span>
@@ -103,20 +103,26 @@ export function MonthlyExpenseChart({ transactions, isLoading, year }: MonthlyEx
             />
             <XAxis 
               dataKey="name" 
-              tick={{ fill: '#6b21a8' }}
-              tickLine={{ stroke: '#8b5cf6' }}
-              axisLine={{ stroke: '#8b5cf6' }}
-              className="dark:text-violet-300"
+              tick={{ 
+                fill: 'var(--text-primary, #4c1d95)',
+                fontSize: 12
+              }}
+              tickLine={{ stroke: 'var(--accent, #7c3aed)' }}
+              axisLine={{ stroke: 'var(--accent, #7c3aed)' }}
+              className="[--text-primary:#4c1d95] [--accent:#7c3aed] dark:[--text-primary:#ffffff] dark:[--accent:#8b5cf6]"
             />
             <YAxis 
               tickFormatter={(value: number) => formatCurrency(value)}
-              tick={{ fill: '#6b21a8' }}
-              tickLine={{ stroke: '#8b5cf6' }}
-              axisLine={{ stroke: '#8b5cf6' }}
-              className="dark:text-violet-300"
+              tick={{ 
+                fill: 'var(--text-primary, #4c1d95)',
+                fontSize: 12
+              }}
+              tickLine={{ stroke: 'var(--accent, #7c3aed)' }}
+              axisLine={{ stroke: 'var(--accent, #7c3aed)' }}
               domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
               width={100}
               tickCount={6}
+              className="[--text-primary:#4c1d95] [--accent:#7c3aed] dark:[--text-primary:#ffffff] dark:[--accent:#8b5cf6]"
             />
             <RechartsTooltip 
               content={<BarChartTooltip />}
